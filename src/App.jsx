@@ -472,32 +472,41 @@ const EmailAnalyzer = () => {
   const parseMsgFile = async (file) => {
     const arrayBuffer = await file.arrayBuffer();
     
-    // Load msg-parser library if not already loaded
+    // Load MSGReader library via jsDelivr with correct version
     if (!window.MSGReader) {
       try {
-        // Try to load the UMD bundle
         const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/msg-parser@1.5.1/lib/msg-parser.umd.js';
+        // Use the correct alpha version with jsDelivr
+        script.src = 'https://cdn.jsdelivr.net/npm/@kenjiuno/msgreader@1.27.1-alpha.1/lib/index.js';
         
         await new Promise((resolve, reject) => {
           script.onload = () => {
-            // The library exports as window.MSGReader
-            if (window.MSGReader) {
-              resolve();
-            } else {
-              reject(new Error('MSG parser loaded but not available'));
-            }
+            // Give it a moment for the module to initialize
+            setTimeout(() => {
+              if (window.MSGReader || (window.exports && window.exports.default)) {
+                resolve();
+              } else {
+                reject(new Error('MSG reader loaded but constructor not found'));
+              }
+            }, 100);
           };
-          script.onerror = () => reject(new Error('Failed to load MSG parser from CDN'));
+          script.onerror = () => reject(new Error('Failed to load MSG reader from CDN'));
           document.head.appendChild(script);
         });
       } catch (loadError) {
-        throw new Error(`Cannot load MSG parser: ${loadError.message}. Try using an EML file instead, or check your internet connection.`);
+        throw new Error(`Cannot load MSG parser: ${loadError.message}. Please convert MSG to EML format (File > Save As > .eml in Outlook) or check your internet connection.`);
       }
     }
     
     try {
-      const msgReader = new window.MSGReader(arrayBuffer);
+      // Try different possible exports
+      const MsgReader = window.MSGReader || (window.exports && window.exports.default) || window.MsgReader;
+      
+      if (!MsgReader) {
+        throw new Error('MSG reader library not available. Please use EML format instead.');
+      }
+      
+      const msgReader = new MsgReader(arrayBuffer);
       const msgData = msgReader.getFileData();
     
       // Convert MSG format to normalized format
@@ -910,11 +919,26 @@ const EmailAnalyzer = () => {
           <div className="space-y-6">
             <div className="bg-white rounded-lg shadow-lg p-6">
               <h2 className="text-xl font-bold text-slate-800 mb-4">Upload Email File</h2>
+              <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <h3 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
+                  <Info className="w-5 h-5" />
+                  Supported Format: EML Files
+                </h3>
+                <div className="text-sm text-blue-800 space-y-2">
+                  <p><strong>This tool supports EML files</strong> which contain all email data including headers, content, and attachments.</p>
+                  <p><strong>Have a MSG file?</strong> Convert it to EML:</p>
+                  <ol className="list-decimal ml-5 mt-2 space-y-1">
+                    <li>Open the MSG file in Outlook</li>
+                    <li>File → Save As</li>
+                    <li>Choose "Email Message Format" (.eml)</li>
+                    <li>Upload the EML file here</li>
+                  </ol>
+                  <p className="pt-2 border-t border-blue-300 mt-2">
+                    <strong>Why EML?</strong> EML is the standard email format and works across all platforms without complex parsing libraries.
+                  </p>
+                </div>
+              </div>
               <p className="text-slate-600 mb-4">
-                Upload .eml or .msg files to parse and extract content, attachments, and metadata.
-                <br />
-                <strong>Perfect for Outlook Mac users</strong> who cannot open .msg files!
-                <br />
                 <span className="text-blue-600 font-medium">Headers will be automatically analyzed after upload.</span>
               </p>
               <div className="flex items-center gap-4">
@@ -923,7 +947,10 @@ const EmailAnalyzer = () => {
                     <div className="text-center">
                       <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
                       <p className="text-sm text-slate-600">
-                        Click to upload <strong>.eml</strong> or <strong>.msg</strong> file
+                        Click to upload <strong>.eml</strong> file
+                      </p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        MSG files will show conversion instructions
                       </p>
                       {file && <p className="text-xs text-blue-600 mt-2">{file.name}</p>}
                     </div>
