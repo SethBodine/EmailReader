@@ -472,32 +472,32 @@ const EmailAnalyzer = () => {
   const parseMsgFile = async (file) => {
     const arrayBuffer = await file.arrayBuffer();
     
-    // Load msg.reader library if not already loaded
-    if (!window.MSGReader && !window.MsgReader) {
-      await new Promise((resolve, reject) => {
+    // Load msg-parser library if not already loaded
+    if (!window.MSGReader) {
+      try {
+        // Try to load the UMD bundle
         const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/@kenjiuno/msgreader@1.27.1/lib/index.js';
-        script.type = 'text/javascript';
-        script.onload = () => {
-          if (window.MSGReader || window.MsgReader) {
-            resolve();
-          } else {
-            reject(new Error('MSG Reader library loaded but not found'));
-          }
-        };
-        script.onerror = () => reject(new Error('Failed to load MSG reader library'));
-        document.head.appendChild(script);
-      });
-    }
-    
-    const MsgReader = window.MSGReader || window.MsgReader;
-    
-    if (!MsgReader) {
-      throw new Error('MSG Reader library not available');
+        script.src = 'https://cdn.jsdelivr.net/npm/msg-parser@1.5.1/lib/msg-parser.umd.js';
+        
+        await new Promise((resolve, reject) => {
+          script.onload = () => {
+            // The library exports as window.MSGReader
+            if (window.MSGReader) {
+              resolve();
+            } else {
+              reject(new Error('MSG parser loaded but not available'));
+            }
+          };
+          script.onerror = () => reject(new Error('Failed to load MSG parser from CDN'));
+          document.head.appendChild(script);
+        });
+      } catch (loadError) {
+        throw new Error(`Cannot load MSG parser: ${loadError.message}. Try using an EML file instead, or check your internet connection.`);
+      }
     }
     
     try {
-      const msgReader = new MsgReader(arrayBuffer);
+      const msgReader = new window.MSGReader(arrayBuffer);
       const msgData = msgReader.getFileData();
     
       // Convert MSG format to normalized format
