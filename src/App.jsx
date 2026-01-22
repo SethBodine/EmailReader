@@ -341,76 +341,60 @@ const EmailAnalyzer = () => {
   const parseMsgFile = async (file) => {
     const arrayBuffer = await file.arrayBuffer();
     
-    // Load msg.reader library if not already loaded
-    if (!window.MSGReader) {
+    // Load msgreader from CDN - use the UMD build
+    if (!window.MsgReader) {
       await new Promise((resolve, reject) => {
         const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/@kenjiuno/msgreader@1.27.1/lib/index.js';
-        script.type = 'text/javascript';
-        script.onload = () => {
-          // Check if the export exists
-          if (window.MSGReader || window.MsgReader) {
-            resolve();
-          } else {
-            reject(new Error('MSG Reader library loaded but not found'));
-          }
-        };
-        script.onerror = () => reject(new Error('Failed to load MSG reader library'));
+        script.src = 'https://cdn.jsdelivr.net/npm/@kenjiuno/msgreader@1.27.1-alpha.1/lib/index.js';
+        script.onload = resolve;
+        script.onerror = reject;
         document.head.appendChild(script);
       });
     }
     
-    // Try different possible exports
-    const MsgReader = window.MSGReader || window.MsgReader || window.msgreader?.default;
+    const MsgReader = window.MsgReader || window.msgreader?.default;
     
     if (!MsgReader) {
-      throw new Error('MSG Reader library not available');
+      throw new Error('Failed to load MSG reader library');
     }
     
-    try {
-      const msgReader = new MsgReader(arrayBuffer);
-      const msgData = msgReader.getFileData();
-    try {
-      const msgReader = new MsgReader(arrayBuffer);
-      const msgData = msgReader.getFileData();
+    const msgReader = new MsgReader(arrayBuffer);
+    const msgData = msgReader.getFileData();
     
-      // Convert MSG format to normalized format
-      const normalized = {
-        from: {
-          name: msgData.senderName || '',
-          address: msgData.senderEmail || msgData.senderSmtpAddress || msgData.sentRepresentingSmtpAddress || ''
-        },
-        to: msgData.recipients?.filter(r => r.recipType === 'to').map(r => ({
-          name: r.name || '',
-          address: r.email || r.smtpAddress || ''
-        })) || [],
-        cc: msgData.recipients?.filter(r => r.recipType === 'cc').map(r => ({
-          name: r.name || '',
-          address: r.email || r.smtpAddress || ''
-        })) || [],
-        subject: msgData.subject || '',
-        date: msgData.clientSubmitTime || msgData.creationTime || msgData.deliveryTime || '',
-        messageId: msgData.internetMessageId || '',
-        text: msgData.body || '',
-        html: msgData.bodyHTML || null,
-        headers: msgData.headers ? parseHeaderString(msgData.headers) : [],
-        attachments: msgData.attachments?.map(att => {
-          const attachment = msgReader.getAttachment(att);
-          return {
-            filename: attachment.fileName || 'attachment',
-            mimeType: attachment.mimeType || 'application/octet-stream',
-            content: attachment.content
-          };
-        }) || []
-      };
-      
-      setParsedEmail({
-        type: 'msg',
-        data: normalized
-      });
-    } catch (parseError) {
-      throw new Error(`Failed to parse MSG file: ${parseError.message}`);
-    }
+    // Convert MSG format to normalized format
+    const normalized = {
+      from: {
+        name: msgData.senderName || '',
+        address: msgData.senderEmail || msgData.senderSmtpAddress || ''
+      },
+      to: msgData.recipients?.filter(r => r.recipType === 'to').map(r => ({
+        name: r.name || '',
+        address: r.email || r.smtpAddress || ''
+      })) || [],
+      cc: msgData.recipients?.filter(r => r.recipType === 'cc').map(r => ({
+        name: r.name || '',
+        address: r.email || r.smtpAddress || ''
+      })) || [],
+      subject: msgData.subject || '',
+      date: msgData.clientSubmitTime || msgData.creationTime || '',
+      messageId: msgData.internetMessageId || '',
+      text: msgData.body || '',
+      html: msgData.bodyHTML || null,
+      headers: msgData.headers ? parseHeaderString(msgData.headers) : [],
+      attachments: msgData.attachments?.map(att => {
+        const attachment = msgReader.getAttachment(att);
+        return {
+          filename: attachment.fileName || 'attachment',
+          mimeType: attachment.mimeType || 'application/octet-stream',
+          content: attachment.content
+        };
+      }) || []
+    };
+    
+    setParsedEmail({
+      type: 'msg',
+      data: normalized
+    });
   };
 
   const parseHeaderString = (headerString) => {
