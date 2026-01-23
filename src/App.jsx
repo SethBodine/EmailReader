@@ -922,19 +922,13 @@ const EmailAnalyzer = () => {
               <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <h3 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
                   <Info className="w-5 h-5" />
-                  Supported Format: EML Files
+                  Supported Formats
                 </h3>
                 <div className="text-sm text-blue-800 space-y-2">
-                  <p><strong>This tool supports EML files</strong> which contain all email data including headers, content, and attachments.</p>
-                  <p><strong>Have a MSG file?</strong> Convert it to EML:</p>
-                  <ol className="list-decimal ml-5 mt-2 space-y-1">
-                    <li>Open the MSG file in Outlook</li>
-                    <li>File → Save As</li>
-                    <li>Choose "Email Message Format" (.eml)</li>
-                    <li>Upload the EML file here</li>
-                  </ol>
+                  <p><strong>✓ EML files</strong> - Direct parsing with full header analysis</p>
+                  <p><strong>✓ MSG files</strong> - Automatically converted to EML then parsed</p>
                   <p className="pt-2 border-t border-blue-300 mt-2">
-                    <strong>Why EML?</strong> EML is the standard email format and works across all platforms without complex parsing libraries.
+                    <strong>How it works:</strong> MSG files are converted to EML format in your browser (no server upload), then analyzed. All processing happens locally for privacy.
                   </p>
                 </div>
               </div>
@@ -947,10 +941,10 @@ const EmailAnalyzer = () => {
                     <div className="text-center">
                       <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
                       <p className="text-sm text-slate-600">
-                        Click to upload <strong>.eml</strong> file
+                        Click to upload <strong>.eml</strong> or <strong>.msg</strong> file
                       </p>
                       <p className="text-xs text-slate-500 mt-1">
-                        MSG files will show conversion instructions
+                        MSG files auto-converted in browser
                       </p>
                       {file && <p className="text-xs text-blue-600 mt-2">{file.name}</p>}
                     </div>
@@ -978,9 +972,13 @@ const EmailAnalyzer = () => {
                 <div className="bg-white rounded-lg shadow-lg p-4">
                   <div className="flex items-center gap-2">
                     <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                      {parsedEmail.type.toUpperCase()} File
+                      {parsedEmail.type.toUpperCase()}
                     </span>
-                    <span className="text-slate-600 text-sm">Successfully parsed - headers analyzed automatically</span>
+                    <span className="text-slate-600 text-sm">
+                      {parsedEmail.type.includes('converted') 
+                        ? 'MSG file converted to EML and parsed - headers analyzed automatically'
+                        : 'Successfully parsed - headers analyzed automatically'}
+                    </span>
                   </div>
                 </div>
 
