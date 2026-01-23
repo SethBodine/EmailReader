@@ -6,7 +6,7 @@ import https from 'https';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Download msg2eml.bundle.js from GitHub
-const url = 'https://raw.githubusercontent.com/master131/msg2eml.js/master/lib/dist/msg2eml.bundle.js';
+const url = 'https://raw.githubusercontent.com/master131/msg2eml.js/refs/heads/master/demo/msg2eml.min.js';
 
 try {
   mkdirSync('public/libs', { recursive: true });
