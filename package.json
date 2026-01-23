@@ -5,12 +5,14 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "postinstall": "node scripts/copy-msg2eml.js"
   },
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "lucide-react": "^0.263.1"
+    "lucide-react": "^0.263.1",
+    "msg2eml": "github:master131/msg2eml.js"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.0.0",
