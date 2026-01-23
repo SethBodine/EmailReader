@@ -919,16 +919,16 @@ const EmailAnalyzer = () => {
           <div className="space-y-6">
             <div className="bg-white rounded-lg shadow-lg p-6">
               <h2 className="text-xl font-bold text-slate-800 mb-4">Upload Email File</h2>
-              <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <h3 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
-                  <Info className="w-5 h-5" />
+              <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                <h3 className="font-semibold text-green-900 mb-2 flex items-center gap-2">
+                  <CheckCircle className="w-5 h-5" />
                   Supported Formats
                 </h3>
-                <div className="text-sm text-blue-800 space-y-2">
-                  <p><strong>✓ EML files</strong> - Direct parsing with full header analysis</p>
-                  <p><strong>✓ MSG files</strong> - Automatically converted to EML then parsed</p>
-                  <p className="pt-2 border-t border-blue-300 mt-2">
-                    <strong>How it works:</strong> MSG files are converted to EML format in your browser (no server upload), then analyzed. All processing happens locally for privacy.
+                <div className="text-sm text-green-800 space-y-2">
+                  <p><strong>✓ EML files</strong> - Direct parsing with instant analysis</p>
+                  <p><strong>✓ MSG files</strong> - Automatically converted to EML in your browser</p>
+                  <p className="pt-2 border-t border-green-300 mt-2">
+                    <strong>Privacy first:</strong> All conversion and analysis happens 100% in your browser. Files never leave your computer.
                   </p>
                 </div>
               </div>
