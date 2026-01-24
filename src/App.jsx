@@ -919,16 +919,22 @@ const EmailAnalyzer = () => {
           <div className="space-y-6">
             <div className="bg-white rounded-lg shadow-lg p-6">
               <h2 className="text-xl font-bold text-slate-800 mb-4">Upload Email File</h2>
-              <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-                <h3 className="font-semibold text-green-900 mb-2 flex items-center gap-2">
-                  <CheckCircle className="w-5 h-5" />
-                  Supported Formats
+              <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <h3 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
+                  <Info className="w-5 h-5" />
+                  Supported Format: EML Files
                 </h3>
-                <div className="text-sm text-green-800 space-y-2">
-                  <p><strong> EML files</strong> - Direct parsing with instant analysis</p>
-                  <p><strong> MSG files</strong> - Automatically converted to EML in your browser</p>
-                  <p className="pt-2 border-t border-green-300 mt-2">
-                    <strong>Privacy first:</strong> All conversion and analysis happens 100% in your browser. Files never leave your computer.
+                <div className="text-sm text-blue-800 space-y-2">
+                  <p><strong> EML files</strong> - Fully supported with complete header analysis</p>
+                  <p><strong>Have a MSG file?</strong> Convert it to EML (30 seconds):</p>
+                  <ol className="list-decimal ml-5 mt-2 space-y-1">
+                    <li>Double-click MSG file to open in Outlook</li>
+                    <li>File  Save As</li>
+                    <li>Select "Email Message Format (.eml)"</li>
+                    <li>Upload the EML file here</li>
+                  </ol>
+                  <p className="pt-2 border-t border-blue-300 mt-2">
+                    <strong>Why EML?</strong> MSG parsing in browsers has technical limitations due to dependency bundling issues. EML is the universal standard and contains all the same data.
                   </p>
                 </div>
               </div>
@@ -941,10 +947,10 @@ const EmailAnalyzer = () => {
                     <div className="text-center">
                       <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
                       <p className="text-sm text-slate-600">
-                        Click to upload <strong>.eml</strong> or <strong>.msg</strong> file
+                        Click to upload <strong>.eml</strong> file
                       </p>
                       <p className="text-xs text-slate-500 mt-1">
-                        MSG files auto-converted in browser
+                        MSG files: convert to EML first
                       </p>
                       {file && <p className="text-xs text-blue-600 mt-2">{file.name}</p>}
                     </div>
