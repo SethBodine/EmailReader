@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "npm run build:msg2eml && vite",
+    "build": "npm run build:msg2eml && vite build",
+    "build:msg2eml": "bash scripts/build-msg2eml.sh",
     "preview": "vite preview"
   },
   "dependencies": {

@@ -77,10 +77,10 @@ const EmailAnalyzer = () => {
           explanation: getSPFExplanation(spf),
           impact: isPass ? 'GOOD' : isFail ? 'BAD' : 'WARNING',
           userGuidance: isPass 
-            ? '✓ This is good - the sender is authorized to send from this domain. Email is less likely to be spam.'
+            ? ' This is good - the sender is authorized to send from this domain. Email is less likely to be spam.'
             : isFail 
-            ? '✗ This is bad - the sender is NOT authorized to send from this domain. Email might be spoofed or spam.'
-            : '⚠ This is neutral - the domain owner has not set up proper SPF records. Treat with caution.',
+            ? ' This is bad - the sender is NOT authorized to send from this domain. Email might be spoofed or spam.'
+            : ' This is neutral - the domain owner has not set up proper SPF records. Treat with caution.',
           details: parseSPFDetails(spf)
         });
         
@@ -93,7 +93,7 @@ const EmailAnalyzer = () => {
         type: 'SPF', 
         message: 'No SPF record found - email authentication cannot be verified',
         impact: 'WARNING',
-        userGuidance: '⚠ This is concerning - legitimate senders should have SPF configured. Be cautious with this email.'
+        userGuidance: ' This is concerning - legitimate senders should have SPF configured. Be cautious with this email.'
       });
       result.summary.warning++;
     }
@@ -108,7 +108,7 @@ const EmailAnalyzer = () => {
           status: 'present',
           explanation: 'DKIM signature found - verifies email authenticity and prevents tampering',
           impact: 'GOOD',
-          userGuidance: '✓ This is good - the email has a digital signature proving it has not been modified in transit.',
+          userGuidance: ' This is good - the email has a digital signature proving it has not been modified in transit.',
           details: dkimDetails
         });
         result.summary.good++;
@@ -118,7 +118,7 @@ const EmailAnalyzer = () => {
         type: 'DKIM', 
         message: 'No DKIM signature found - email integrity cannot be verified',
         impact: 'WARNING',
-        userGuidance: '⚠ This is concerning - legitimate email senders should sign their emails. The email might not be authentic.'
+        userGuidance: ' This is concerning - legitimate email senders should sign their emails. The email might not be authentic.'
       });
       result.summary.warning++;
     }
@@ -135,8 +135,8 @@ const EmailAnalyzer = () => {
             explanation: getDMARCExplanation(dmarcInfo.pass ? 'pass' : 'fail'),
             impact: dmarcInfo.pass ? 'GOOD' : 'BAD',
             userGuidance: dmarcInfo.pass
-              ? '✓ This is excellent - email passed both SPF and DKIM checks. Very likely to be legitimate.'
-              : '✗ This is bad - DMARC alignment failed. The email may be forged or from a compromised account.',
+              ? ' This is excellent - email passed both SPF and DKIM checks. Very likely to be legitimate.'
+              : ' This is bad - DMARC alignment failed. The email may be forged or from a compromised account.',
             details: dmarcInfo
           });
           
@@ -154,7 +154,7 @@ const EmailAnalyzer = () => {
         status: 'present',
         explanation: 'ARC chain present - preserves authentication results through forwarding',
         impact: 'GOOD',
-        userGuidance: '✓ This is good - authentication is preserved even if the email was forwarded through mailing lists.'
+        userGuidance: ' This is good - authentication is preserved even if the email was forwarded through mailing lists.'
       });
       result.summary.good++;
     }
@@ -174,10 +174,10 @@ const EmailAnalyzer = () => {
         explanation: `Spam score: ${score.toFixed(1)}. Threshold: ${spamDetails.threshold || 'N/A'}`,
         impact: isGood ? 'GOOD' : isWarning ? 'WARNING' : 'BAD',
         userGuidance: isGood
-          ? `✓ This is good - spam score of ${score.toFixed(1)} is low. Email appears legitimate.`
+          ? ` This is good - spam score of ${score.toFixed(1)} is low. Email appears legitimate.`
           : isWarning
-          ? `⚠ This is suspicious - spam score of ${score.toFixed(1)} is elevated. Review content carefully before trusting.`
-          : `✗ This is bad - spam score of ${score.toFixed(1)} is very high. Email is very likely spam or malicious.`,
+          ? ` This is suspicious - spam score of ${score.toFixed(1)} is elevated. Review content carefully before trusting.`
+          : ` This is bad - spam score of ${score.toFixed(1)} is very high. Email is very likely spam or malicious.`,
         details: spamDetails
       });
       
@@ -200,10 +200,10 @@ const EmailAnalyzer = () => {
           explanation: `Score: ${score}. Lower is better. <5 is normal, 5-10 is suspicious, >10 is likely spam`,
           impact: isGood ? 'GOOD' : isWarning ? 'WARNING' : 'BAD',
           userGuidance: isGood
-            ? `✓ This is good - spam score of ${score} is low. Email appears legitimate.`
+            ? ` This is good - spam score of ${score} is low. Email appears legitimate.`
             : isWarning
-            ? `⚠ This is suspicious - spam score of ${score} is elevated. Review content carefully before trusting.`
-            : `✗ This is bad - spam score of ${score} is very high. Email is very likely spam or malicious.`
+            ? ` This is suspicious - spam score of ${score} is elevated. Review content carefully before trusting.`
+            : ` This is bad - spam score of ${score} is very high. Email is very likely spam or malicious.`
         });
         
         if (isGood) result.summary.good++;
@@ -223,8 +223,8 @@ const EmailAnalyzer = () => {
         explanation: isFlagged ? 'Marked as spam' : 'Not marked as spam',
         impact: isFlagged ? 'BAD' : 'GOOD',
         userGuidance: isFlagged
-          ? '✗ This is bad - email is explicitly marked as spam. Likely dangerous.'
-          : '✓ This is good - email is not flagged as spam.'
+          ? ' This is bad - email is explicitly marked as spam. Likely dangerous.'
+          : ' This is good - email is not flagged as spam.'
       });
       
       if (isFlagged) result.summary.bad++;
@@ -239,7 +239,7 @@ const EmailAnalyzer = () => {
         status: 'good',
         explanation: 'Email was scanned for viruses',
         impact: 'GOOD',
-        userGuidance: '✓ This is good - email was scanned by antivirus software. No viruses detected.'
+        userGuidance: ' This is good - email was scanned by antivirus software. No viruses detected.'
       });
       result.summary.good++;
     }
@@ -608,7 +608,7 @@ const EmailAnalyzer = () => {
             <Mail className="w-10 h-10 text-blue-600" />
             <div>
               <h1 className="text-3xl font-bold text-slate-800">Email Analysis Tool</h1>
-              <p className="text-slate-600">Decode headers • Parse EML/MSG files • Analyze authentication & spam</p>
+              <p className="text-slate-600">Decode headers  Parse EML/MSG files  Analyze authentication & spam</p>
             </div>
           </div>
 
@@ -665,9 +665,9 @@ const EmailAnalyzer = () => {
                   How to interpret results
                 </h3>
                 <div className="text-sm text-blue-800 space-y-1">
-                  <p><strong className="text-green-700">✓ Good indicators:</strong> These are positive signs that the email is legitimate and safe.</p>
-                  <p><strong className="text-amber-700">⚠ Warnings:</strong> These suggest caution - the email may be legitimate but lacks proper authentication.</p>
-                  <p><strong className="text-red-700">✗ Bad indicators:</strong> These are red flags - the email is likely spam, phishing, or spoofed.</p>
+                  <p><strong className="text-green-700"> Good indicators:</strong> These are positive signs that the email is legitimate and safe.</p>
+                  <p><strong className="text-amber-700"> Warnings:</strong> These suggest caution - the email may be legitimate but lacks proper authentication.</p>
+                  <p><strong className="text-red-700"> Bad indicators:</strong> These are red flags - the email is likely spam, phishing, or spoofed.</p>
                   <p className="pt-2 border-t border-blue-300 mt-2"><strong>Pro tip:</strong> Legitimate companies always configure SPF, DKIM, and DMARC. Missing authentication is a major warning sign.</p>
                 </div>
               </div>
@@ -695,29 +695,29 @@ const EmailAnalyzer = () => {
                     <div className="p-4 bg-green-50 border-2 border-green-200 rounded-lg text-center">
                       <div className="text-3xl font-bold text-green-600">{headerAnalysis.summary.good}</div>
                       <div className="text-sm text-green-800 font-medium">Good Indicators</div>
-                      <div className="text-xs text-green-600 mt-1">✓ Positive signs</div>
+                      <div className="text-xs text-green-600 mt-1"> Positive signs</div>
                     </div>
                     <div className="p-4 bg-amber-50 border-2 border-amber-200 rounded-lg text-center">
                       <div className="text-3xl font-bold text-amber-600">{headerAnalysis.summary.warning}</div>
                       <div className="text-sm text-amber-800 font-medium">Warnings</div>
-                      <div className="text-xs text-amber-600 mt-1">⚠ Needs attention</div>
+                      <div className="text-xs text-amber-600 mt-1"> Needs attention</div>
                     </div>
                     <div className="p-4 bg-red-50 border-2 border-red-200 rounded-lg text-center">
                       <div className="text-3xl font-bold text-red-600">{headerAnalysis.summary.bad}</div>
                       <div className="text-sm text-red-800 font-medium">Bad Indicators</div>
-                      <div className="text-xs text-red-600 mt-1">✗ Major concerns</div>
+                      <div className="text-xs text-red-600 mt-1"> Major concerns</div>
                     </div>
                   </div>
                   <div className="mt-4 p-4 bg-slate-50 rounded-lg">
                     <p className="text-sm text-slate-700">
                       <strong>What this means:</strong> {
                         headerAnalysis.summary.bad > 0
-                          ? '🚨 This email has serious red flags. Be very cautious - it may be spam or malicious.'
+                          ? ' This email has serious red flags. Be very cautious - it may be spam or malicious.'
                           : headerAnalysis.summary.warning > 2
-                          ? '⚠️ This email has some concerns. Review carefully before trusting the content or clicking links.'
+                          ? ' This email has some concerns. Review carefully before trusting the content or clicking links.'
                           : headerAnalysis.summary.good >= 3
-                          ? '✅ This email appears legitimate with good authentication. Generally safe to trust.'
-                          : '📋 Limited information available. Use additional judgment to assess trustworthiness.'
+                          ? ' This email appears legitimate with good authentication. Generally safe to trust.'
+                          : ' Limited information available. Use additional judgment to assess trustworthiness.'
                       }
                     </p>
                   </div>
@@ -925,8 +925,8 @@ const EmailAnalyzer = () => {
                   Supported Formats
                 </h3>
                 <div className="text-sm text-green-800 space-y-2">
-                  <p><strong>✓ EML files</strong> - Direct parsing with instant analysis</p>
-                  <p><strong>✓ MSG files</strong> - Automatically converted to EML in your browser</p>
+                  <p><strong> EML files</strong> - Direct parsing with instant analysis</p>
+                  <p><strong> MSG files</strong> - Automatically converted to EML in your browser</p>
                   <p className="pt-2 border-t border-green-300 mt-2">
                     <strong>Privacy first:</strong> All conversion and analysis happens 100% in your browser. Files never leave your computer.
                   </p>
@@ -1062,7 +1062,7 @@ const EmailAnalyzer = () => {
                           <div>
                             <div className="font-semibold text-slate-800">{att.filename || 'Unnamed'}</div>
                             <div className="text-sm text-slate-600">
-                              {att.mimeType} • {formatBytes(att.content.byteLength || att.content.length)}
+                              {att.mimeType}  {formatBytes(att.content.byteLength || att.content.length)}
                             </div>
                           </div>
                           <button
