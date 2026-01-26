@@ -89,13 +89,29 @@ const EmailReader = () => {
           for (const spf of spfResults) {
             const spfLower = spf.toLowerCase();
             if (spfLower.includes('pass')) {
-              return { status: 'pass', message: 'SPF verification passed' };
+              return { 
+                status: 'pass', 
+                message: 'SPF verification passed',
+                value: spf
+              };
             } else if (spfLower.includes('fail') && !spfLower.includes('softfail')) {
-              return { status: 'fail', message: 'SPF verification failed - sender not authorised' };
+              return { 
+                status: 'fail', 
+                message: 'SPF verification failed - sender not authorised',
+                value: spf
+              };
             } else if (spfLower.includes('softfail')) {
-              return { status: 'warning', message: 'SPF soft fail - questionable sender' };
+              return { 
+                status: 'warning', 
+                message: 'SPF soft fail - questionable sender',
+                value: spf
+              };
             } else if (spfLower.includes('neutral')) {
-              return { status: 'warning', message: 'SPF neutral - no policy' };
+              return { 
+                status: 'warning', 
+                message: 'SPF neutral - no policy',
+                value: spf
+              };
             }
           }
         }
@@ -104,32 +120,53 @@ const EmailReader = () => {
           for (const auth of headers['authentication-results']) {
             const authLower = auth.toLowerCase();
             if (authLower.includes('spf=pass')) {
-              return { status: 'pass', message: 'SPF verification passed' };
+              return { 
+                status: 'pass', 
+                message: 'SPF verification passed',
+                value: auth
+              };
             } else if (authLower.includes('spf=fail')) {
-              return { status: 'fail', message: 'SPF verification failed - sender not authorised' };
+              return { 
+                status: 'fail', 
+                message: 'SPF verification failed - sender not authorised',
+                value: auth
+              };
             }
           }
         }
-        return { status: 'none', message: 'No SPF record found' };
+        return { status: 'none', message: 'No SPF record found', value: null };
       
       case 'dkim':
         // Check for DKIM signature presence
         if (headers['dkim-signature']) {
+          const dkimSig = headers['dkim-signature'][0];
           // Check authentication-results for verification status
           if (headers['authentication-results']) {
             for (const auth of headers['authentication-results']) {
               const authLower = auth.toLowerCase();
               if (authLower.includes('dkim=pass')) {
-                return { status: 'pass', message: 'DKIM signature valid' };
+                return { 
+                  status: 'pass', 
+                  message: 'DKIM signature valid',
+                  value: dkimSig.substring(0, 100) + '...'
+                };
               } else if (authLower.includes('dkim=fail')) {
-                return { status: 'fail', message: 'DKIM signature invalid - message may be altered' };
+                return { 
+                  status: 'fail', 
+                  message: 'DKIM signature invalid - message may be altered',
+                  value: dkimSig.substring(0, 100) + '...'
+                };
               }
             }
           }
           // DKIM signature present but no verification result
-          return { status: 'warning', message: 'DKIM signature present but not verified' };
+          return { 
+            status: 'warning', 
+            message: 'DKIM signature present but not verified',
+            value: dkimSig.substring(0, 100) + '...'
+          };
         }
-        return { status: 'none', message: 'No DKIM signature found' };
+        return { status: 'none', message: 'No DKIM signature found', value: null };
       
       case 'dmarc':
         // Check authentication-results for DMARC
@@ -137,32 +174,57 @@ const EmailReader = () => {
           for (const auth of headers['authentication-results']) {
             const authLower = auth.toLowerCase();
             if (authLower.includes('dmarc=pass')) {
-              return { status: 'pass', message: 'DMARC policy satisfied' };
+              return { 
+                status: 'pass', 
+                message: 'DMARC policy satisfied',
+                value: auth
+              };
             } else if (authLower.includes('dmarc=fail')) {
-              return { status: 'fail', message: 'DMARC policy not satisfied' };
+              return { 
+                status: 'fail', 
+                message: 'DMARC policy not satisfied',
+                value: auth
+              };
             } else if (authLower.includes('dmarc=bestguesspass')) {
-              return { status: 'warning', message: 'DMARC best guess pass (no policy)' };
+              return { 
+                status: 'warning', 
+                message: 'DMARC best guess pass (no policy)',
+                value: auth
+              };
             }
           }
         }
-        return { status: 'none', message: 'No DMARC policy found' };
+        return { status: 'none', message: 'No DMARC policy found', value: null };
       
       case 'arc':
         // Check for ARC headers
         if (headers['arc-authentication-results'] || headers['arc-seal']) {
+          const arcValue = headers['arc-authentication-results']?.[0] || headers['arc-seal']?.[0];
           if (headers['authentication-results']) {
             for (const auth of headers['authentication-results']) {
               const authLower = auth.toLowerCase();
               if (authLower.includes('arc=pass') || authLower.includes('compauth=pass')) {
-                return { status: 'pass', message: 'ARC chain valid (forwarded securely)' };
+                return { 
+                  status: 'pass', 
+                  message: 'ARC chain valid (forwarded securely)',
+                  value: arcValue?.substring(0, 100) + '...'
+                };
               } else if (authLower.includes('arc=fail')) {
-                return { status: 'fail', message: 'ARC chain broken' };
+                return { 
+                  status: 'fail', 
+                  message: 'ARC chain broken',
+                  value: arcValue?.substring(0, 100) + '...'
+                };
               }
             }
           }
-          return { status: 'warning', message: 'ARC present but status unclear' };
+          return { 
+            status: 'warning', 
+            message: 'ARC present but status unclear',
+            value: arcValue?.substring(0, 100) + '...'
+          };
         }
-        return { status: 'none', message: 'No ARC chain found' };
+        return { status: 'none', message: 'No ARC chain found', value: null };
     }
   };
 
@@ -204,12 +266,10 @@ const EmailReader = () => {
   const extractRouting = (headers) => {
     if (!headers['received']) return [];
     
-    // Reverse to show chronological order
+    // Reverse to show chronological order (oldest first)
+    // Don't truncate - show full routing information
     const hops = [...headers['received']].reverse().slice(0, 5);
-    return hops.map(hop => {
-      const trimmed = hop.trim();
-      return trimmed.length > 200 ? trimmed.substring(0, 200) + '...' : trimmed;
-    });
+    return hops.map(hop => hop.trim());
   };
 
   const calculateOverall = (analysis) => {
@@ -453,7 +513,14 @@ const EmailReader = () => {
                             {getStatusIcon(headerAnalysis[auth].status)}
                             <h4 className="font-bold text-gray-800 uppercase">{auth}</h4>
                           </div>
-                          <p className="text-sm text-gray-600">{headerAnalysis[auth].message}</p>
+                          <p className="text-sm text-gray-600 mb-2">{headerAnalysis[auth].message}</p>
+                          {headerAnalysis[auth].value && (
+                            <div className="mt-2 p-2 bg-gray-50 rounded border border-gray-200">
+                              <p className="text-xs font-mono text-gray-600 break-all">
+                                {headerAnalysis[auth].value}
+                              </p>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -471,11 +538,19 @@ const EmailReader = () => {
 
                     {headerAnalysis.routing.length > 0 && (
                       <div className="bg-white border-2 border-gray-200 rounded-lg p-4">
-                        <h4 className="font-bold text-gray-800 mb-3">Email Routing</h4>
-                        <div className="space-y-2">
+                        <h4 className="font-bold text-gray-800 mb-3">Email Routing ({headerAnalysis.routing.length} hops)</h4>
+                        <p className="text-sm text-gray-600 mb-3">
+                          Email passed through {headerAnalysis.routing.length} mail servers. Shows the path from sender to recipient.
+                        </p>
+                        <div className="space-y-3">
                           {headerAnalysis.routing.map((hop, i) => (
-                            <div key={i} className="text-xs font-mono bg-gray-50 p-2 rounded">
-                              {hop}
+                            <div key={i} className="p-3 bg-gray-50 rounded border border-gray-200">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="bg-indigo-100 text-indigo-800 px-2 py-1 rounded text-xs font-bold">
+                                  Hop {i + 1}
+                                </span>
+                              </div>
+                              <p className="text-xs font-mono text-gray-600 break-all whitespace-pre-wrap">{hop}</p>
                             </div>
                           ))}
                         </div>
