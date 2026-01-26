@@ -187,11 +187,22 @@ const EmailReader = () => {
     analysis.overall = calculateOverall(analysis);
     setHeaderAnalysis(analysis);
 
+    // Extract from/to from headers for manual entry
+    let fromEmail = 'Missing';
+    let toEmail = 'Missing';
+    
+    if (headers['from'] && headers['from'][0]) {
+      fromEmail = headers['from'][0];
+    }
+    if (headers['to'] && headers['to'][0]) {
+      toEmail = headers['to'][0];
+    }
+
     // Send telemetry
     sendTelemetry({
       fileType: fileType,
-      from: emailData?.from || 'Manual',
-      to: emailData?.to || 'Manual',
+      from: emailData?.from || fromEmail,
+      to: emailData?.to || toEmail,
       overall: analysis.overall,
       spf: analysis.spf.status,
       dkim: analysis.dkim.status,
