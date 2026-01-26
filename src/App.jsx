@@ -81,40 +81,98 @@ const EmailReader = () => {
   }, [headerInput]);
 
   const analyzeAuth = (headers, type) => {
-    const authResults = headers['authentication-results'] || '';
-    const received = headers['received-spf'] || '';
+    // Handle multiple possible header formats
+    const authResults = (headers['authentication-results'] || '').toString().toLowerCase();
+    const receivedSpf = (headers['received-spf'] || '').toString().toLowerCase();
+    
+    // Microsoft-specific headers
+    const msAuthResults = (headers['x-ms-exchange-authentication-results'] || '').toString().toLowerCase();
+    const msSpf = (headers['x-forefront-antispam-report'] || '').toString().toLowerCase();
+    
+    // DKIM signature presence (not a pass/fail, just indicates DKIM was attempted)
+    const dkimSignature = (headers['dkim-signature'] || '').toString();
+    
+    // Debug log
+    if (type === 'spf') {
+      console.log('Authentication-Results:', authResults);
+      console.log('Received-SPF:', receivedSpf);
+      console.log('MS Auth Results:', msAuthResults);
+      console.log('All header keys:', Object.keys(headers));
+    }
     
     switch(type) {
       case 'spf':
-        if (authResults.includes('spf=pass') || received.includes('Pass')) {
+        // Microsoft format: "spf=pass (sender IP is...)"
+        // Standard format: "spf=pass" or "Pass"
+        if (authResults.includes('spf=pass') || 
+            authResults.includes('spf pass') ||
+            receivedSpf.includes('pass')) {
           return { status: 'pass', message: 'SPF verification passed' };
-        } else if (authResults.includes('spf=fail') || received.includes('Fail')) {
+        } 
+        else if (authResults.includes('spf=fail') || 
+                 authResults.includes('spf fail') ||
+                 receivedSpf.includes('fail')) {
           return { status: 'fail', message: 'SPF verification failed - sender not authorised' };
-        } else if (authResults.includes('spf=softfail')) {
+        } 
+        else if (authResults.includes('spf=softfail') || 
+                 authResults.includes('spf softfail') ||
+                 receivedSpf.includes('softfail')) {
           return { status: 'warning', message: 'SPF soft fail - questionable sender' };
+        }
+        else if (authResults.includes('spf=neutral') || 
+                 authResults.includes('spf neutral') ||
+                 receivedSpf.includes('neutral')) {
+          return { status: 'warning', message: 'SPF neutral - no policy' };
+        }
+        else if (authResults.includes('spf=none')) {
+          return { status: 'none', message: 'No SPF record found' };
         }
         return { status: 'none', message: 'No SPF record found' };
       
       case 'dkim':
-        if (authResults.includes('dkim=pass')) {
+        // Microsoft format: "dkim=pass (signature was verified) header.d=domain.com"
+        // Check for pass in authentication results
+        if (authResults.includes('dkim=pass') || 
+            authResults.includes('dkim pass')) {
           return { status: 'pass', message: 'DKIM signature valid' };
-        } else if (authResults.includes('dkim=fail')) {
+        } 
+        else if (authResults.includes('dkim=fail') || 
+                 authResults.includes('dkim fail')) {
           return { status: 'fail', message: 'DKIM signature invalid - message may be altered' };
+        }
+        // If there's a DKIM-Signature header but no result, it might not have been checked
+        else if (dkimSignature) {
+          return { status: 'warning', message: 'DKIM signature present but not verified in headers' };
         }
         return { status: 'none', message: 'No DKIM signature found' };
       
       case 'dmarc':
-        if (authResults.includes('dmarc=pass')) {
+        // Microsoft format: "dmarc=pass action=none header.from=domain.com"
+        if (authResults.includes('dmarc=pass') || 
+            authResults.includes('dmarc pass')) {
           return { status: 'pass', message: 'DMARC policy satisfied' };
-        } else if (authResults.includes('dmarc=fail')) {
+        } 
+        else if (authResults.includes('dmarc=fail') || 
+                 authResults.includes('dmarc fail')) {
           return { status: 'fail', message: 'DMARC policy not satisfied' };
+        }
+        else if (authResults.includes('dmarc=bestguesspass')) {
+          return { status: 'warning', message: 'DMARC best guess pass (no policy published)' };
+        }
+        else if (authResults.includes('dmarc=none')) {
+          return { status: 'none', message: 'No DMARC policy found' };
         }
         return { status: 'none', message: 'No DMARC policy found' };
       
       case 'arc':
-        if (authResults.includes('arc=pass')) {
+        // Microsoft uses compauth for composite authentication including ARC
+        if (authResults.includes('arc=pass') || 
+            authResults.includes('arc pass') ||
+            authResults.includes('compauth=pass')) {
           return { status: 'pass', message: 'ARC chain valid (forwarded securely)' };
-        } else if (authResults.includes('arc=fail')) {
+        } 
+        else if (authResults.includes('arc=fail') || 
+                 authResults.includes('arc fail')) {
           return { status: 'fail', message: 'ARC chain broken' };
         }
         return { status: 'none', message: 'No ARC chain found' };
@@ -147,7 +205,11 @@ const EmailReader = () => {
     }
     
     const hops = receivedText.split(/Received:/i).filter(r => r.trim()).slice(0, 5);
-    return hops.map(hop => hop.trim().substring(0, 100) + '...');
+    return hops.map(hop => {
+      const trimmed = hop.trim();
+      // Show more of the routing info - 200 chars instead of 100
+      return trimmed.length > 200 ? trimmed.substring(0, 200) + '...' : trimmed;
+    });
   };
 
   const calculateOverall = (analysis) => {
