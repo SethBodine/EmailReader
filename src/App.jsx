@@ -1,11 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Upload, AlertCircle, CheckCircle, XCircle, Mail, FileText, Shield } from 'lucide-react';
-import PostalMime from 'postal-mime';
-import MSGReader from '@kenjiuno/msgreader';
-import { Buffer } from 'buffer';
-
-// Make Buffer available globally for MSGReader
-window.Buffer = Buffer;
 
 const EmailReader = () => {
   const [activeTab, setActiveTab] = useState('headers');
@@ -24,20 +18,44 @@ const EmailReader = () => {
   }, [headerInput, autoAnalyze]);
 
   // Header Analysis Functions
+  // Header Analysis Functions
   const analyzeHeaders = () => {
+    if (!headerInput.trim()) {
+      alert('Please paste email headers first');
+      return;
+    }
+
     const lines = headerInput.split(/\r?\n/);
     const headers = {};
     
     let currentHeader = '';
     lines.forEach(line => {
+      // Skip empty lines
+      if (!line.trim()) return;
+      
       if (line.match(/^[\w-]+:/)) {
         const match = line.match(/^([\w-]+):\s*(.*)$/);
         if (match) {
           currentHeader = match[1].toLowerCase();
-          headers[currentHeader] = match[2];
+          // If header already exists, convert to array
+          if (headers[currentHeader]) {
+            if (Array.isArray(headers[currentHeader])) {
+              headers[currentHeader].push(match[2]);
+            } else {
+              headers[currentHeader] = [headers[currentHeader], match[2]];
+            }
+          } else {
+            headers[currentHeader] = match[2];
+          }
         }
       } else if (currentHeader && (line.startsWith(' ') || line.startsWith('\t'))) {
-        headers[currentHeader] += ' ' + line.trim();
+        // Continuation of previous header
+        if (Array.isArray(headers[currentHeader])) {
+          const lastIndex = headers[currentHeader].length - 1;
+          headers[currentHeader][lastIndex] += ' ' + line.trim();
+        } else {
+          headers[currentHeader] += ' ' + line.trim();
+        }
       }
     });
 
@@ -128,6 +146,38 @@ const EmailReader = () => {
     return 'warning';
   };
 
+  // Simple EML parser
+  const parseEMLHeaders = (text) => {
+    const headers = {};
+    const lines = text.split(/\r?\n/);
+    let currentHeader = '';
+    let headerEndIndex = 0;
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      
+      // Empty line marks end of headers
+      if (line.trim() === '') {
+        headerEndIndex = i;
+        break;
+      }
+      
+      if (line.match(/^[\w-]+:/)) {
+        const match = line.match(/^([\w-]+):\s*(.*)$/);
+        if (match) {
+          currentHeader = match[1].toLowerCase();
+          headers[currentHeader] = match[2];
+        }
+      } else if (currentHeader && (line.startsWith(' ') || line.startsWith('\t'))) {
+        headers[currentHeader] += ' ' + line.trim();
+      }
+    }
+    
+    const body = lines.slice(headerEndIndex + 1).join('\n');
+    
+    return { headers, body };
+  };
+
   // File Processing Functions
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
@@ -138,100 +188,61 @@ const EmailReader = () => {
     if (fileName.endsWith('.eml')) {
       await processEMLFile(file);
     } else if (fileName.endsWith('.msg')) {
-      await processMSGFile(file);
+      alert('MSG file support requires external libraries. For this demo, please use the standalone version with npm install. EML files are fully supported here!');
     } else {
-      alert('Please upload a .eml or .msg file');
+      alert('Please upload a .eml file');
     }
   };
 
   const processEMLFile = async (file) => {
     try {
       const text = await file.text();
-      const parser = new PostalMime();
-      const email = await parser.parse(text);
+      const { headers, body } = parseEMLHeaders(text);
+      
+      // Extract basic fields
+      const from = headers['from'] || 'Unknown';
+      const to = headers['to'] || 'Unknown';
+      const subject = headers['subject'] || 'No Subject';
+      const date = headers['date'] || 'Unknown';
+      
+      // Try to extract HTML and plain text from body
+      const contentType = headers['content-type'] || '';
+      let html = '';
+      let plainText = '';
+      
+      if (contentType.includes('text/html')) {
+        html = body;
+      } else if (contentType.includes('text/plain')) {
+        plainText = body;
+      } else if (contentType.includes('multipart')) {
+        // Simple multipart handling
+        const parts = body.split(/--[\w-]+/);
+        for (const part of parts) {
+          if (part.includes('Content-Type: text/html')) {
+            const htmlMatch = part.split(/\r?\n\r?\n/).slice(1).join('\n');
+            html = htmlMatch;
+          } else if (part.includes('Content-Type: text/plain')) {
+            const textMatch = part.split(/\r?\n\r?\n/).slice(1).join('\n');
+            plainText = textMatch;
+          }
+        }
+      } else {
+        plainText = body;
+      }
       
       const processedData = {
-        from: email.from?.address || 'Unknown',
-        to: email.to?.map(t => t.address).join(', ') || 'Unknown',
-        subject: email.subject || 'No Subject',
-        date: email.date || 'Unknown',
-        headers: email.headers || {},
-        html: email.html || '',
-        text: email.text || '',
-        attachments: email.attachments || []
+        from,
+        to,
+        subject,
+        date,
+        headers,
+        html: html.trim(),
+        text: plainText.trim() || body.substring(0, 1000),
+        attachments: []
       };
 
       setEmailData(processedData);
       setFileType('eml');
-      
-      // Auto-populate headers tab
-      const headerText = Object.entries(processedData.headers)
-        .map(([key, value]) => `${key}: ${value}`)
-        .join('\n');
-      setHeaderInput(headerText);
-      setAutoAnalyze(true);
-    } catch (error) {
-      console.error('EML parsing error:', error);
-      alert('Error processing EML file: ' + error.message);
-    }
-  };
-
-  const processMSGFile = async (file) => {
-    try {
-      const arrayBuffer = await file.arrayBuffer();
-      const msgReader = new MSGReader(arrayBuffer);
-      const fileData = msgReader.getFileData();
-      
-      // Extract headers from MSG - headers is a string with \r\n separators
-      const headers = {};
-      if (fileData.headers) {
-        const headerLines = fileData.headers.split(/\r?\n/);
-        let currentHeader = '';
-        
-        headerLines.forEach(line => {
-          // Check if it's a new header (starts with a word followed by colon)
-          if (line.match(/^[\w-]+:/)) {
-            const match = line.match(/^([\w-]+):\s*(.*)$/);
-            if (match) {
-              currentHeader = match[1].toLowerCase();
-              headers[currentHeader] = match[2];
-            }
-          } else if (currentHeader && (line.startsWith(' ') || line.startsWith('\t'))) {
-            // Continuation of previous header
-            headers[currentHeader] += ' ' + line.trim();
-          }
-        });
-      }
-
-      // Build recipient list from recipients array
-      const recipientList = fileData.recipients?.map(r => {
-        if (r.email) return r.email;
-        if (r.name) return r.name;
-        return 'Unknown';
-      }).join(', ') || 'Unknown';
-
-      // Construct sender info
-      const senderInfo = fileData.senderEmail 
-        ? `${fileData.senderName || ''} <${fileData.senderEmail}>`.trim()
-        : fileData.senderName || 'Unknown';
-
-      const processedData = {
-        from: senderInfo,
-        to: recipientList,
-        subject: fileData.subject || 'No Subject',
-        date: fileData.creationTime || fileData.lastModificationTime || 'Unknown',
-        headers: headers,
-        html: fileData.body || '',
-        text: fileData.body?.replace(/<[^>]*>/g, '') || '',
-        attachments: (fileData.attachments || []).map(att => ({
-          filename: att.fileName || att.fileNameShort || 'Unknown',
-          size: att.contentLength || 0,
-          dataId: att.dataId
-        }))
-      };
-
-      setEmailData(processedData);
-      setFileType('msg');
       
       // Auto-populate headers tab
       const headerText = Object.entries(headers)
@@ -240,8 +251,8 @@ const EmailReader = () => {
       setHeaderInput(headerText);
       setAutoAnalyze(true);
     } catch (error) {
-      console.error('MSG parsing error:', error);
-      alert('Error processing MSG file: ' + error.message);
+      console.error('EML parsing error:', error);
+      alert('Error processing EML file: ' + error.message);
     }
   };
 
@@ -276,7 +287,10 @@ const EmailReader = () => {
             <Shield className="w-10 h-10 text-indigo-600" />
             <h1 className="text-4xl font-bold text-gray-800">Email Security Analyser</h1>
           </div>
-          <p className="text-gray-600">Analyse headers, read EML/MSG files, and detect spam</p>
+          <p className="text-gray-600">Analyse headers and read EML files - Demo Version</p>
+          <p className="text-sm text-gray-500 mt-2">
+            For full MSG support, use the GitHub version with npm install
+          </p>
         </div>
 
         {/* Tabs */}
@@ -305,7 +319,7 @@ const EmailReader = () => {
             >
               <div className="flex items-center justify-center gap-2">
                 <Mail className="w-5 h-5" />
-                EML/MSG Reader
+                EML Reader
               </div>
             </button>
           </div>
@@ -386,17 +400,20 @@ const EmailReader = () => {
                   <Upload className="w-16 h-16 mx-auto text-gray-400 mb-4" />
                   <label className="cursor-pointer">
                     <span className="text-lg font-semibold text-indigo-600 hover:text-indigo-700">
-                      Choose EML or MSG file
+                      Choose EML file
                     </span>
                     <input
                       type="file"
-                      accept=".eml,.msg"
+                      accept=".eml"
                       onChange={handleFileUpload}
                       className="hidden"
                     />
                   </label>
                   <p className="text-sm text-gray-500 mt-2">
-                    Supports .eml (all platforms) and .msg (Outlook) files
+                    EML format supported in this demo
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    For MSG files, use the full version from GitHub
                   </p>
                 </div>
 
@@ -440,25 +457,6 @@ const EmailReader = () => {
                       </div>
                     </div>
 
-                    {emailData.attachments.length > 0 && (
-                      <div className="bg-white border-2 border-gray-200 rounded-lg p-6">
-                        <h4 className="font-bold text-gray-800 mb-3">
-                          Attachments ({emailData.attachments.length})
-                        </h4>
-                        <div className="space-y-2">
-                          {emailData.attachments.map((att, i) => (
-                            <div key={i} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                              <FileText className="w-5 h-5 text-gray-500" />
-                              <span className="text-sm font-medium">{att.filename || `Attachment ${i + 1}`}</span>
-                              <span className="text-xs text-gray-500 ml-auto">
-                                {att.size ? `${(att.size / 1024).toFixed(1)} KB` : ''}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
                     <div className="bg-white border-2 border-gray-200 rounded-lg p-6">
                       <h4 className="font-bold text-gray-800 mb-3">All Headers</h4>
                       <div className="bg-gray-50 p-4 rounded-lg max-h-64 overflow-y-auto">
@@ -478,6 +476,16 @@ const EmailReader = () => {
 
         <div className="text-center text-sm text-gray-600">
           <p>This tool processes files locally in your browser. No data is sent to any server.</p>
+          <p className="mt-2">
+            <a 
+              href="https://github.com/SethBodine/EmailReader" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-indigo-600 hover:text-indigo-700 underline"
+            >
+              Get the full version with MSG support on GitHub
+            </a>
+          </p>
         </div>
       </div>
     </div>
