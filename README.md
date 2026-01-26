@@ -30,8 +30,8 @@ A production-grade web application for analyzing email headers and parsing EML/M
 
 - **React 18** + **Vite** - Modern build tooling
 - **Tailwind CSS** (CDN) - Styling
-- **postal-mime v2.7.3** (CDN) - EML parsing
-- **@kenjiuno/msgreader v1.27.1** (CDN) - MSG parsing
+- **postal-mime** - EML parsing (NPM package)
+- **@kenjiuno/msgreader** - MSG parsing (NPM package)
 - **Lucide React** - Icons
 
 ## Development
@@ -86,7 +86,7 @@ npm run build
 - **All processing happens locally in your browser**
 - No files are uploaded to any server
 - Email data never leaves your device
-- Libraries loaded from trusted CDNs (jsDelivr)
+- Libraries bundled with the application
 
 ### Supported File Types
 - **.eml** - Standard MIME email format (works everywhere)
@@ -156,3 +156,4 @@ For issues or questions:
 ---
 
 **Live Demo:** [eml.insecure.co.nz](https://eml.insecure.co.nz)
+

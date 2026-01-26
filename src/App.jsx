@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
 import { Upload, AlertCircle, CheckCircle, XCircle, Mail, FileText, Shield } from 'lucide-react';
-
-// Simulated imports - in production these come from CDN
-const PostalMime = window.PostalMime;
-const MSGReader = window.MSGReader;
+import PostalMime from 'postal-mime';
+import MSGReader from '@kenjiuno/msgreader';
 
 const EmailReader = () => {
   const [activeTab, setActiveTab] = useState('headers');
@@ -136,7 +134,7 @@ const EmailReader = () => {
   const processEMLFile = async (file) => {
     try {
       const text = await file.text();
-      const parser = new PostalMime.default();
+      const parser = new PostalMime();
       const email = await parser.parse(text);
       
       const processedData = {
@@ -159,6 +157,7 @@ const EmailReader = () => {
         .join('\n');
       setHeaderInput(headerText);
     } catch (error) {
+      console.error('EML parsing error:', error);
       alert('Error processing EML file: ' + error.message);
     }
   };
