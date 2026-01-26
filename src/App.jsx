@@ -23,6 +23,39 @@ const EmailReader = () => {
     }
   }, [autoAnalyze]);
 
+  // Parse headers into array format (key insight from working code!)
+  const parseHeadersToObject = useCallback((headerText) => {
+    const lines = headerText.split(/\r?\n/);
+    const headers = {};
+    let currentHeader = null;
+    let currentValue = '';
+
+    lines.forEach(line => {
+      if (line.match(/^[\w-]+:/)) {
+        // Save previous header
+        if (currentHeader) {
+          if (!headers[currentHeader]) headers[currentHeader] = [];
+          headers[currentHeader].push(currentValue.trim());
+        }
+        // Start new header
+        const colonIndex = line.indexOf(':');
+        currentHeader = line.substring(0, colonIndex).trim().toLowerCase();
+        currentValue = line.substring(colonIndex + 1);
+      } else if (currentHeader && line.match(/^\s/)) {
+        // Continuation line
+        currentValue += ' ' + line.trim();
+      }
+    });
+
+    // Save last header
+    if (currentHeader) {
+      if (!headers[currentHeader]) headers[currentHeader] = [];
+      headers[currentHeader].push(currentValue.trim());
+    }
+
+    return headers;
+  }, []);
+
   // Header Analysis Functions
   const analyzeHeaders = useCallback(() => {
     if (!headerInput.trim()) {
@@ -30,41 +63,8 @@ const EmailReader = () => {
       return;
     }
 
-    const lines = headerInput.split(/\r?\n/);
-    const headers = {};
-    
-    let currentHeader = '';
-    lines.forEach(line => {
-      // Skip empty lines
-      if (!line.trim()) return;
-      
-      if (line.match(/^[\w-]+:/)) {
-        const match = line.match(/^([\w-]+):\s*(.*)$/);
-        if (match) {
-          currentHeader = match[1].toLowerCase();
-          // If header already exists, convert to array
-          if (headers[currentHeader]) {
-            if (Array.isArray(headers[currentHeader])) {
-              headers[currentHeader].push(match[2]);
-            } else {
-              headers[currentHeader] = [headers[currentHeader], match[2]];
-            }
-          } else {
-            headers[currentHeader] = match[2];
-          }
-        }
-      } else if (currentHeader && (line.startsWith(' ') || line.startsWith('\t'))) {
-        // Continuation of previous header
-        if (Array.isArray(headers[currentHeader])) {
-          const lastIndex = headers[currentHeader].length - 1;
-          headers[currentHeader][lastIndex] += ' ' + line.trim();
-        } else {
-          headers[currentHeader] += ' ' + line.trim();
-        }
-      }
-    });
-
-    console.log('Parsed headers:', headers); // Debug log
+    const headers = parseHeadersToObject(headerInput);
+    console.log('Parsed headers:', headers);
 
     const analysis = {
       spf: analyzeAuth(headers, 'spf'),
@@ -78,136 +78,136 @@ const EmailReader = () => {
 
     analysis.overall = calculateOverall(analysis);
     setHeaderAnalysis(analysis);
-  }, [headerInput]);
+  }, [headerInput, parseHeadersToObject]);
 
   const analyzeAuth = (headers, type) => {
-    // Handle multiple possible header formats
-    const authResults = (headers['authentication-results'] || '').toString().toLowerCase();
-    const receivedSpf = (headers['received-spf'] || '').toString().toLowerCase();
-    
-    // Microsoft-specific headers
-    const msAuthResults = (headers['x-ms-exchange-authentication-results'] || '').toString().toLowerCase();
-    const msSpf = (headers['x-forefront-antispam-report'] || '').toString().toLowerCase();
-    
-    // DKIM signature presence (not a pass/fail, just indicates DKIM was attempted)
-    const dkimSignature = (headers['dkim-signature'] || '').toString();
-    
-    // Debug log
-    if (type === 'spf') {
-      console.log('Authentication-Results:', authResults);
-      console.log('Received-SPF:', receivedSpf);
-      console.log('MS Auth Results:', msAuthResults);
-      console.log('All header keys:', Object.keys(headers));
-    }
-    
     switch(type) {
       case 'spf':
-        // Microsoft format: "spf=pass (sender IP is...)"
-        // Standard format: "spf=pass" or "Pass"
-        if (authResults.includes('spf=pass') || 
-            authResults.includes('spf pass') ||
-            receivedSpf.includes('pass')) {
-          return { status: 'pass', message: 'SPF verification passed' };
-        } 
-        else if (authResults.includes('spf=fail') || 
-                 authResults.includes('spf fail') ||
-                 receivedSpf.includes('fail')) {
-          return { status: 'fail', message: 'SPF verification failed - sender not authorised' };
-        } 
-        else if (authResults.includes('spf=softfail') || 
-                 authResults.includes('spf softfail') ||
-                 receivedSpf.includes('softfail')) {
-          return { status: 'warning', message: 'SPF soft fail - questionable sender' };
+        // Check received-spf header (array)
+        if (headers['received-spf']) {
+          const spfResults = headers['received-spf'];
+          for (const spf of spfResults) {
+            const spfLower = spf.toLowerCase();
+            if (spfLower.includes('pass')) {
+              return { status: 'pass', message: 'SPF verification passed' };
+            } else if (spfLower.includes('fail') && !spfLower.includes('softfail')) {
+              return { status: 'fail', message: 'SPF verification failed - sender not authorised' };
+            } else if (spfLower.includes('softfail')) {
+              return { status: 'warning', message: 'SPF soft fail - questionable sender' };
+            } else if (spfLower.includes('neutral')) {
+              return { status: 'warning', message: 'SPF neutral - no policy' };
+            }
+          }
         }
-        else if (authResults.includes('spf=neutral') || 
-                 authResults.includes('spf neutral') ||
-                 receivedSpf.includes('neutral')) {
-          return { status: 'warning', message: 'SPF neutral - no policy' };
-        }
-        else if (authResults.includes('spf=none')) {
-          return { status: 'none', message: 'No SPF record found' };
+        // Also check authentication-results for spf
+        if (headers['authentication-results']) {
+          for (const auth of headers['authentication-results']) {
+            const authLower = auth.toLowerCase();
+            if (authLower.includes('spf=pass')) {
+              return { status: 'pass', message: 'SPF verification passed' };
+            } else if (authLower.includes('spf=fail')) {
+              return { status: 'fail', message: 'SPF verification failed - sender not authorised' };
+            }
+          }
         }
         return { status: 'none', message: 'No SPF record found' };
       
       case 'dkim':
-        // Microsoft format: "dkim=pass (signature was verified) header.d=domain.com"
-        // Check for pass in authentication results
-        if (authResults.includes('dkim=pass') || 
-            authResults.includes('dkim pass')) {
-          return { status: 'pass', message: 'DKIM signature valid' };
-        } 
-        else if (authResults.includes('dkim=fail') || 
-                 authResults.includes('dkim fail')) {
-          return { status: 'fail', message: 'DKIM signature invalid - message may be altered' };
-        }
-        // If there's a DKIM-Signature header but no result, it might not have been checked
-        else if (dkimSignature) {
-          return { status: 'warning', message: 'DKIM signature present but not verified in headers' };
+        // Check for DKIM signature presence
+        if (headers['dkim-signature']) {
+          // Check authentication-results for verification status
+          if (headers['authentication-results']) {
+            for (const auth of headers['authentication-results']) {
+              const authLower = auth.toLowerCase();
+              if (authLower.includes('dkim=pass')) {
+                return { status: 'pass', message: 'DKIM signature valid' };
+              } else if (authLower.includes('dkim=fail')) {
+                return { status: 'fail', message: 'DKIM signature invalid - message may be altered' };
+              }
+            }
+          }
+          // DKIM signature present but no verification result
+          return { status: 'warning', message: 'DKIM signature present but not verified' };
         }
         return { status: 'none', message: 'No DKIM signature found' };
       
       case 'dmarc':
-        // Microsoft format: "dmarc=pass action=none header.from=domain.com"
-        if (authResults.includes('dmarc=pass') || 
-            authResults.includes('dmarc pass')) {
-          return { status: 'pass', message: 'DMARC policy satisfied' };
-        } 
-        else if (authResults.includes('dmarc=fail') || 
-                 authResults.includes('dmarc fail')) {
-          return { status: 'fail', message: 'DMARC policy not satisfied' };
-        }
-        else if (authResults.includes('dmarc=bestguesspass')) {
-          return { status: 'warning', message: 'DMARC best guess pass (no policy published)' };
-        }
-        else if (authResults.includes('dmarc=none')) {
-          return { status: 'none', message: 'No DMARC policy found' };
+        // Check authentication-results for DMARC
+        if (headers['authentication-results']) {
+          for (const auth of headers['authentication-results']) {
+            const authLower = auth.toLowerCase();
+            if (authLower.includes('dmarc=pass')) {
+              return { status: 'pass', message: 'DMARC policy satisfied' };
+            } else if (authLower.includes('dmarc=fail')) {
+              return { status: 'fail', message: 'DMARC policy not satisfied' };
+            } else if (authLower.includes('dmarc=bestguesspass')) {
+              return { status: 'warning', message: 'DMARC best guess pass (no policy)' };
+            }
+          }
         }
         return { status: 'none', message: 'No DMARC policy found' };
       
       case 'arc':
-        // Microsoft uses compauth for composite authentication including ARC
-        if (authResults.includes('arc=pass') || 
-            authResults.includes('arc pass') ||
-            authResults.includes('compauth=pass')) {
-          return { status: 'pass', message: 'ARC chain valid (forwarded securely)' };
-        } 
-        else if (authResults.includes('arc=fail') || 
-                 authResults.includes('arc fail')) {
-          return { status: 'fail', message: 'ARC chain broken' };
+        // Check for ARC headers
+        if (headers['arc-authentication-results'] || headers['arc-seal']) {
+          if (headers['authentication-results']) {
+            for (const auth of headers['authentication-results']) {
+              const authLower = auth.toLowerCase();
+              if (authLower.includes('arc=pass') || authLower.includes('compauth=pass')) {
+                return { status: 'pass', message: 'ARC chain valid (forwarded securely)' };
+              } else if (authLower.includes('arc=fail')) {
+                return { status: 'fail', message: 'ARC chain broken' };
+              }
+            }
+          }
+          return { status: 'warning', message: 'ARC present but status unclear' };
         }
         return { status: 'none', message: 'No ARC chain found' };
     }
   };
 
   const detectSpamScore = (headers) => {
-    const spamScore = headers['x-spam-score'] || headers['x-spam-status'] || '';
-    const score = parseFloat(spamScore.match(/score=([\d.]+)/)?.[1] || '0');
-    
-    if (score >= 5) {
-      return { level: 'high', score, message: 'High spam likelihood' };
-    } else if (score >= 2) {
-      return { level: 'medium', score, message: 'Moderate spam indicators' };
-    } else if (score > 0) {
-      return { level: 'low', score, message: 'Low spam score' };
+    // Check X-Spam-Score header
+    if (headers['x-spam-score']) {
+      const scoreStr = headers['x-spam-score'][0];
+      const score = parseFloat(scoreStr);
+      
+      if (score >= 5) {
+        return { level: 'high', score, message: 'High spam likelihood' };
+      } else if (score >= 2) {
+        return { level: 'medium', score, message: 'Moderate spam indicators' };
+      } else if (score > 0) {
+        return { level: 'low', score, message: 'Low spam score' };
+      }
+      return { level: 'none', score: 0, message: 'No spam indicators' };
     }
+
+    // Check X-Spam-Status header
+    if (headers['x-spam-status']) {
+      const status = headers['x-spam-status'][0];
+      const scoreMatch = status.match(/score=([-\d.]+)/i);
+      if (scoreMatch) {
+        const score = parseFloat(scoreMatch[1]);
+        if (score >= 5) {
+          return { level: 'high', score, message: 'High spam likelihood' };
+        } else if (score >= 2) {
+          return { level: 'medium', score, message: 'Moderate spam indicators' };
+        } else if (score > 0) {
+          return { level: 'low', score, message: 'Low spam score' };
+        }
+      }
+    }
+    
     return { level: 'none', score: 0, message: 'No spam indicators' };
   };
 
   const extractRouting = (headers) => {
-    const received = headers['received'] || '';
+    if (!headers['received']) return [];
     
-    // Handle both string and array received headers
-    let receivedText = '';
-    if (Array.isArray(received)) {
-      receivedText = received.join('\nReceived: ');
-    } else {
-      receivedText = received;
-    }
-    
-    const hops = receivedText.split(/Received:/i).filter(r => r.trim()).slice(0, 5);
+    // Reverse to show chronological order
+    const hops = [...headers['received']].reverse().slice(0, 5);
     return hops.map(hop => {
       const trimmed = hop.trim();
-      // Show more of the routing info - 200 chars instead of 100
       return trimmed.length > 200 ? trimmed.substring(0, 200) + '...' : trimmed;
     });
   };
@@ -246,23 +246,13 @@ const EmailReader = () => {
       const parser = new PostalMime();
       const email = await parser.parse(text);
       
-      // Convert PostalMime headers format to simple key-value pairs
+      // Convert PostalMime headers to simple object
       const simpleHeaders = {};
       if (email.headers) {
         email.headers.forEach(header => {
           const key = header.key.toLowerCase();
-          const value = header.value;
-          
-          // If header already exists, convert to array
-          if (simpleHeaders[key]) {
-            if (Array.isArray(simpleHeaders[key])) {
-              simpleHeaders[key].push(value);
-            } else {
-              simpleHeaders[key] = [simpleHeaders[key], value];
-            }
-          } else {
-            simpleHeaders[key] = value;
-          }
+          if (!simpleHeaders[key]) simpleHeaders[key] = [];
+          simpleHeaders[key].push(header.value);
         });
       }
       
@@ -280,16 +270,9 @@ const EmailReader = () => {
       setEmailData(processedData);
       setFileType('eml');
       
-      // Auto-populate headers tab - convert header objects to strings
+      // Auto-populate headers tab using array format
       const headerText = Object.entries(simpleHeaders)
-        .map(([key, value]) => {
-          // Handle array values (like multiple Received headers)
-          if (Array.isArray(value)) {
-            return value.map(v => `${key}: ${v}`).join('\n');
-          }
-          // Handle string values
-          return `${key}: ${value}`;
-        })
+        .map(([key, values]) => values.map(v => `${key}: ${v}`).join('\n'))
         .join('\n');
       setHeaderInput(headerText);
       setAutoAnalyze(true);
@@ -305,35 +288,38 @@ const EmailReader = () => {
       const msgReader = new MSGReader(arrayBuffer);
       const fileData = msgReader.getFileData();
       
-      // Extract headers from MSG - headers is a string with \r\n separators
+      // Parse MSG headers into array format
       const headers = {};
       if (fileData.headers) {
         const headerLines = fileData.headers.split(/\r?\n/);
-        let currentHeader = '';
+        let currentHeader = null;
+        let currentValue = '';
         
         headerLines.forEach(line => {
-          // Check if it's a new header (starts with a word followed by colon)
           if (line.match(/^[\w-]+:/)) {
-            const match = line.match(/^([\w-]+):\s*(.*)$/);
-            if (match) {
-              currentHeader = match[1].toLowerCase();
-              headers[currentHeader] = match[2];
+            if (currentHeader) {
+              if (!headers[currentHeader]) headers[currentHeader] = [];
+              headers[currentHeader].push(currentValue.trim());
             }
+            const colonIndex = line.indexOf(':');
+            currentHeader = line.substring(0, colonIndex).trim().toLowerCase();
+            currentValue = line.substring(colonIndex + 1);
           } else if (currentHeader && (line.startsWith(' ') || line.startsWith('\t'))) {
-            // Continuation of previous header
-            headers[currentHeader] += ' ' + line.trim();
+            currentValue += ' ' + line.trim();
           }
         });
+        if (currentHeader) {
+          if (!headers[currentHeader]) headers[currentHeader] = [];
+          headers[currentHeader].push(currentValue.trim());
+        }
       }
 
-      // Build recipient list from recipients array
       const recipientList = fileData.recipients?.map(r => {
         if (r.email) return r.email;
         if (r.name) return r.name;
         return 'Unknown';
       }).join(', ') || 'Unknown';
 
-      // Construct sender info
       const senderInfo = fileData.senderEmail 
         ? `${fileData.senderName || ''} <${fileData.senderEmail}>`.trim()
         : fileData.senderName || 'Unknown';
@@ -356,20 +342,9 @@ const EmailReader = () => {
       setEmailData(processedData);
       setFileType('msg');
       
-      // Auto-populate headers tab - convert header objects to strings
+      // Auto-populate headers tab using array format
       const headerText = Object.entries(headers)
-        .map(([key, value]) => {
-          // Handle array values
-          if (Array.isArray(value)) {
-            return value.map(v => `${key}: ${v}`).join('\n');
-          }
-          // Handle object values
-          if (typeof value === 'object' && value !== null) {
-            return `${key}: ${JSON.stringify(value)}`;
-          }
-          // Handle string values
-          return `${key}: ${value}`;
-        })
+        .map(([key, values]) => values.map(v => `${key}: ${v}`).join('\n'))
         .join('\n');
       setHeaderInput(headerText);
       setAutoAnalyze(true);
@@ -413,7 +388,6 @@ const EmailReader = () => {
           <p className="text-gray-600">Analyse headers, read EML/MSG files, and detect spam</p>
         </div>
 
-        {/* Tabs */}
         <div className="bg-white rounded-lg shadow-lg mb-6">
           <div className="flex border-b">
             <button
@@ -445,7 +419,6 @@ const EmailReader = () => {
           </div>
 
           <div className="p-6">
-            {/* Header Analysis Tab */}
             {activeTab === 'headers' && (
               <div className="space-y-6">
                 <div>
@@ -513,7 +486,6 @@ const EmailReader = () => {
               </div>
             )}
 
-            {/* File Reader Tab */}
             {activeTab === 'files' && (
               <div className="space-y-6">
                 <div className="border-4 border-dashed border-gray-300 rounded-lg p-12 text-center hover:border-indigo-400 transition-colors">
@@ -598,18 +570,7 @@ const EmailReader = () => {
                       <div className="bg-gray-50 p-4 rounded-lg max-h-64 overflow-y-auto">
                         <pre className="text-xs font-mono whitespace-pre-wrap">
                           {Object.entries(emailData.headers)
-                            .map(([key, value]) => {
-                              // Handle array values
-                              if (Array.isArray(value)) {
-                                return value.map(v => `${key}: ${v}`).join('\n');
-                              }
-                              // Handle object values
-                              if (typeof value === 'object' && value !== null) {
-                                return `${key}: ${JSON.stringify(value)}`;
-                              }
-                              // Handle string values
-                              return `${key}: ${value}`;
-                            })
+                            .map(([key, values]) => values.map(v => `${key}: ${v}`).join('\n'))
                             .join('\n')}
                         </pre>
                       </div>
