@@ -184,12 +184,32 @@ const EmailReader = () => {
       const parser = new PostalMime();
       const email = await parser.parse(text);
       
+      // Convert PostalMime headers format to simple key-value pairs
+      const simpleHeaders = {};
+      if (email.headers) {
+        email.headers.forEach(header => {
+          const key = header.key.toLowerCase();
+          const value = header.value;
+          
+          // If header already exists, convert to array
+          if (simpleHeaders[key]) {
+            if (Array.isArray(simpleHeaders[key])) {
+              simpleHeaders[key].push(value);
+            } else {
+              simpleHeaders[key] = [simpleHeaders[key], value];
+            }
+          } else {
+            simpleHeaders[key] = value;
+          }
+        });
+      }
+      
       const processedData = {
         from: email.from?.address || 'Unknown',
         to: email.to?.map(t => t.address).join(', ') || 'Unknown',
         subject: email.subject || 'No Subject',
         date: email.date || 'Unknown',
-        headers: email.headers || {},
+        headers: simpleHeaders,
         html: email.html || '',
         text: email.text || '',
         attachments: email.attachments || []
@@ -199,15 +219,11 @@ const EmailReader = () => {
       setFileType('eml');
       
       // Auto-populate headers tab - convert header objects to strings
-      const headerText = Object.entries(processedData.headers)
+      const headerText = Object.entries(simpleHeaders)
         .map(([key, value]) => {
           // Handle array values (like multiple Received headers)
           if (Array.isArray(value)) {
             return value.map(v => `${key}: ${v}`).join('\n');
-          }
-          // Handle object values
-          if (typeof value === 'object' && value !== null) {
-            return `${key}: ${JSON.stringify(value)}`;
           }
           // Handle string values
           return `${key}: ${value}`;
