@@ -34,56 +34,56 @@ const EmailReader = () => {
 
       // Build Discord embed
       const embed = {
-        title: ' Email Analysis Event',
+        title: '📧 Email Analysis Event',
         color: data.overall === 'good' ? 0x00ff00 : data.overall === 'bad' ? 0xff0000 : 0xffaa00,
         fields: [
           {
-            name: ' IP Address',
+            name: '🌐 IP Address',
             value: userIP,
             inline: true
           },
           {
-            name: ' File Type',
+            name: '📁 File Type',
             value: data.fileType ? data.fileType.toUpperCase() : 'Manual Headers',
             inline: true
           },
           {
-            name: ' Overall Assessment',
-            value: data.overall === 'good' ? ' Good' : data.overall === 'bad' ? ' Bad' : ' Caution',
+            name: '📊 Overall Assessment',
+            value: data.overall === 'good' ? '✅ Good' : data.overall === 'bad' ? '❌ Bad' : '⚠️ Caution',
             inline: true
           },
           {
-            name: ' From',
+            name: '📤 From',
             value: data.from || 'N/A',
             inline: false
           },
           {
-            name: ' To',
+            name: '📥 To',
             value: data.to || 'N/A',
             inline: false
           },
           {
-            name: ' SPF',
+            name: '🔐 SPF',
             value: getStatusEmoji(data.spf),
             inline: true
           },
           {
-            name: ' DKIM',
+            name: '🔑 DKIM',
             value: getStatusEmoji(data.dkim),
             inline: true
           },
           {
-            name: ' DMARC',
+            name: '🛡️ DMARC',
             value: getStatusEmoji(data.dmarc),
             inline: true
           },
           {
-            name: ' ARC',
+            name: '🔗 ARC',
             value: getStatusEmoji(data.arc),
             inline: true
           },
           {
-            name: ' Spam Score',
+            name: '🎯 Spam Score',
             value: data.spamScore ? `${data.spamScore.level.toUpperCase()} (${data.spamScore.score})` : 'N/A',
             inline: true
           }
@@ -115,10 +115,10 @@ const EmailReader = () => {
   const getStatusEmoji = (status) => {
     if (!status) return 'N/A';
     switch(status) {
-      case 'pass': return ' Pass';
-      case 'fail': return ' Fail';
-      case 'warning': return ' Warning';
-      case 'none': return ' None';
+      case 'pass': return '✅ Pass';
+      case 'fail': return '❌ Fail';
+      case 'warning': return '⚠️ Warning';
+      case 'none': return '⚪ None';
       default: return 'N/A';
     }
   };
@@ -516,6 +516,29 @@ const EmailReader = () => {
         ? `${fileData.senderName || ''} <${fileData.senderEmail}>`.trim()
         : fileData.senderName || 'Unknown';
 
+      // Extract attachments with actual data
+      const attachments = (fileData.attachments || []).map(att => {
+        try {
+          const attachmentData = msgReader.getAttachment(att);
+          return {
+            filename: attachmentData.fileName || att.fileName || att.fileNameShort || 'Unknown',
+            size: attachmentData.content?.byteLength || att.contentLength || 0,
+            mimeType: attachmentData.mimeType || 'application/octet-stream',
+            content: attachmentData.content, // The actual binary data
+            dataId: att.dataId
+          };
+        } catch (err) {
+          console.error('Error extracting attachment:', err);
+          return {
+            filename: att.fileName || att.fileNameShort || 'Unknown',
+            size: att.contentLength || 0,
+            mimeType: 'application/octet-stream',
+            content: null,
+            dataId: att.dataId
+          };
+        }
+      });
+
       const processedData = {
         from: senderInfo,
         to: recipientList,
@@ -524,11 +547,7 @@ const EmailReader = () => {
         headers: headers,
         html: fileData.body || '',
         text: fileData.body?.replace(/<[^>]*>/g, '') || '',
-        attachments: (fileData.attachments || []).map(att => ({
-          filename: att.fileName || att.fileNameShort || 'Unknown',
-          size: att.contentLength || 0,
-          dataId: att.dataId
-        }))
+        attachments: attachments
       };
 
       setEmailData(processedData);
@@ -567,6 +586,37 @@ const EmailReader = () => {
         {badge.label}
       </div>
     );
+  };
+
+  // Download attachment function
+  const downloadAttachment = (attachment) => {
+    try {
+      let blob;
+      
+      // Handle different attachment formats
+      if (attachment.content) {
+        // Has binary content (from both EML and MSG)
+        blob = new Blob([attachment.content], { 
+          type: attachment.mimeType || 'application/octet-stream' 
+        });
+      } else {
+        alert('Attachment data not available for download');
+        return;
+      }
+      
+      // Create download link
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = attachment.filename || 'attachment';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Download error:', error);
+      alert('Error downloading attachment: ' + error.message);
+    }
   };
 
   return (
@@ -760,12 +810,25 @@ const EmailReader = () => {
                         </h4>
                         <div className="space-y-2">
                           {emailData.attachments.map((att, i) => (
-                            <div key={i} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                              <FileText className="w-5 h-5 text-gray-500" />
-                              <span className="text-sm font-medium">{att.filename || `Attachment ${i + 1}`}</span>
-                              <span className="text-xs text-gray-500 ml-auto">
-                                {att.size ? `${(att.size / 1024).toFixed(1)} KB` : ''}
-                              </span>
+                            <div key={i} className="flex items-center justify-between gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors">
+                              <div className="flex items-center gap-3 flex-1 min-w-0">
+                                <FileText className="w-5 h-5 text-gray-500 flex-shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <span className="text-sm font-medium block truncate">{att.filename || `Attachment ${i + 1}`}</span>
+                                  <span className="text-xs text-gray-500">
+                                    {att.mimeType && `${att.mimeType} • `}
+                                    {att.size ? `${(att.size / 1024).toFixed(1)} KB` : att.content?.byteLength ? `${(att.content.byteLength / 1024).toFixed(1)} KB` : ''}
+                                  </span>
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => downloadAttachment(att)}
+                                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex-shrink-0"
+                                title="Download attachment"
+                              >
+                                <Upload className="w-4 h-4 rotate-180" />
+                                <span className="text-sm font-medium">Download</span>
+                              </button>
                             </div>
                           ))}
                         </div>
