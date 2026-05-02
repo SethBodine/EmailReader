@@ -1,0 +1,22 @@
+/*
+  # Prevent browsers from guessing content types
+  X-Content-Type-Options: nosniff
+
+  # Block clickjacking
+  X-Frame-Options: DENY
+
+  # Only send referrer on same origin
+  Referrer-Policy: same-origin
+
+  # Disable browser features not needed by this tool
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
+
+  # Content Security Policy
+  # - default-src: nothing unless explicitly listed
+  # - script-src: self only (Tailwind CDN is loaded via script tag so cdn.tailwindcss.com is required)
+  # - style-src: self + inline styles (Tailwind injects inline styles at runtime)
+  # - connect-src: Discord webhook (telemetry) + Cloudflare trace (IP lookup)
+  # - img-src: self + data URIs (email HTML may contain inline images)
+  # - font-src: self
+  # - frame-src/object-src: blocked entirely
+  Content-Security-Policy: default-src 'none'; script-src 'self' https://cdn.tailwindcss.com 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://discord.com https://cloudflare.com; img-src 'self' data: https:; font-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none';

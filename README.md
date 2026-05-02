@@ -1,159 +1,184 @@
-# Email Header Analyzer & EML/MSG Parser
+# Email Security Analyser
 
-A production-grade web application for analyzing email headers and parsing EML/MSG files with user-friendly security guidance.
+A client-side web application for analysing email headers and reading EML/MSG files. All file processing happens locally in your browser — email contents and attachments are never uploaded to any server.
 
-## Features
+**Live:** [eml.insecure.co.nz](https://eml.insecure.co.nz)
 
-### 1. Header Analyzer
-- Email authentication analysis (SPF, DKIM, DMARC, ARC)
-- Spam score detection with explanations
-- Email routing visualization
-- Overall trustworthiness assessment
-- Plain-language guidance (Good/Warning/Bad)
+---
 
-### 2. EML File Reader
-- Parse .eml files (cross-platform email format)
-- Extract attachments
-- View complete headers
-- Display HTML and plain text content
-- Auto-populate header analyzer
+## What it does
 
-### 3. MSG File Reader (NEW!)
-- Parse .msg files (Outlook format)
-- Full Mac compatibility (Outlook for Mac can't open .msg files)
-- Extract attachments
-- View complete headers
-- Display email content
-- Auto-populate header analyzer
+### Header Analyser
+Paste raw email headers to check:
+- **SPF** — whether the sending server is authorised to send on behalf of the domain
+- **DKIM** — whether the message signature is valid and the content hasn't been altered
+- **DMARC** — whether the message satisfies the domain's authentication policy
+- **ARC** — whether a forwarded message has a valid authentication chain
+- **Spam score** — X-Spam-Score/X-Spam-Status header parsing
+- **Routing** — the path the email took through mail servers, hop by hop
+- **Overall verdict** — Good / Caution / Bad based on combined results
+
+To get headers from Gmail: open the email → three-dot menu → *Show original*. In Outlook: File → Properties → Internet headers.
+
+### EML / MSG Reader
+Upload a `.eml` or `.msg` file to:
+- View From, To, Subject, Date
+- Read the email body (HTML rendered safely, plain text fallback)
+- Download attachments (dangerous file types are flagged before download)
+- Inspect all raw headers
+- Auto-populate the Header Analyser tab for immediate analysis
+
+`.eml` is the standard format exported from most mail clients. `.msg` is the Outlook format — this tool lets you open MSG files on any platform including Mac, where Outlook can't open them natively.
+
+---
 
 ## Technologies
 
-- **React 18** + **Vite** - Modern build tooling
-- **Tailwind CSS** (CDN) - Styling
-- **postal-mime** - EML parsing (NPM package)
-- **@kenjiuno/msgreader** - MSG parsing (NPM package)
-- **Lucide React** - Icons
+| Package | Purpose |
+|---|---|
+| React 18 + Vite | UI framework and build tooling |
+| Tailwind CSS (CDN) | Styling |
+| postal-mime | EML file parsing |
+| @kenjiuno/msgreader | MSG file parsing |
+| DOMPurify | HTML sanitisation before rendering email bodies |
+| Lucide React | Icons |
 
-## Development
+---
+
+## Deployment (Cloudflare Pages via GitHub)
+
+This is how the live site is deployed — Cloudflare Pages builds and deploys automatically on every push to the `main` branch.
+
+### First-time setup
+
+1. Push this repository to GitHub
+2. Log in to the [Cloudflare Pages dashboard](https://pages.cloudflare.com)
+3. Click **Create a project** → **Connect to Git**
+4. Select your GitHub repository
+5. Set the following build settings:
+
+| Setting | Value |
+|---|---|
+| Build command | `npm run build` |
+| Build output directory | `dist` |
+| Node.js version | `18` or higher (set in Environment Variables as `NODE_VERSION = 18`) |
+
+6. Under **Environment Variables**, add:
+
+| Variable | Value |
+|---|---|
+| `VITE_DISCORD_WEBHOOK_URL` | Your Discord webhook URL (see Telemetry section below) |
+
+7. Click **Save and Deploy**
+
+From this point on, every push to `main` triggers a new build and deployment automatically. No manual steps required.
+
+### Security headers
+
+The `public/_headers` file configures Cloudflare Pages to serve the following HTTP security headers on every response:
+
+- `Content-Security-Policy` — restricts what the page can load and connect to
+- `X-Frame-Options: DENY` — prevents clickjacking
+- `X-Content-Type-Options: nosniff` — prevents MIME type sniffing
+- `Referrer-Policy: same-origin`
+- `Permissions-Policy` — disables camera, microphone, geolocation and payment APIs
+
+This file is picked up automatically by Cloudflare Pages from the `dist/` output — no additional configuration required.
+
+---
+
+## Local development
 
 ### Prerequisites
-- Node.js 18+ and npm
+- Node.js 18+
+- npm 9+
 
-### Installation
+### Setup
 
 ```bash
-# Clone the repository
 git clone https://github.com/SethBodine/EmailReader.git
 cd EmailReader
-
-# Install dependencies
 npm install
+```
 
-# Start development server
+Create a `.env.local` file if you want telemetry working locally:
+
+```
+VITE_DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/your/webhook
+```
+
+```bash
 npm run dev
 ```
 
 Visit http://localhost:5173
 
-### Build for Production
+### Production build
 
 ```bash
 npm run build
 ```
 
-Output will be in the `dist/` directory.
-
-## Deployment to Cloudflare Pages
-
-### Via Git Integration (Recommended)
-1. Push your code to GitHub
-2. Go to Cloudflare Pages dashboard
-3. Connect your GitHub repository
-4. Set build settings:
-   - **Build command:** `npm run build`
-   - **Build output directory:** `dist`
-   - **Node version:** 18 or higher
-
-### Via Direct Upload
-```bash
-npm run build
-# Upload the 'dist' folder to Cloudflare Pages
-```
-
-## How It Works
-
-### Privacy & Security
-- **All processing happens locally in your browser**
-- No files are uploaded to any server
-- Email data never leaves your device
-- Libraries bundled with the application
-
-### Supported File Types
-- **.eml** - Standard MIME email format (works everywhere)
-- **.msg** - Microsoft Outlook format (now works on Mac!)
-
-## Usage
-
-### Analyzing Headers
-1. Click "Header Analyzer" tab
-2. Paste email headers (View > Message > Show Original in Gmail)
-3. Click "Analyze Headers"
-4. Review SPF, DKIM, DMARC, ARC status and spam indicators
-
-### Reading Email Files
-1. Click "EML/MSG Reader" tab
-2. Upload an .eml or .msg file
-3. View email content, attachments, and headers
-4. Headers are automatically populated in the analyzer tab
-
-## Project Structure
-
-```
-EmailReader/
- src/
-    App.jsx           # Main application component
-    main.jsx          # React entry point
-    index.css         # Global styles
- index.html            # HTML template with CDN scripts
- package.json          # Dependencies and scripts
- vite.config.js        # Vite configuration
- .gitignore            # Git ignore rules
- README.md             # This file
-```
-
-## Browser Compatibility
-
-- Chrome/Edge 90+
-- Firefox 88+
-- Safari 14+
-- Modern mobile browsers
-
-## Contributing
-
-Issues and pull requests are welcome! Please ensure:
-- Code follows existing style
-- All features work in modern browsers
-- Privacy/security principles are maintained
-
-## License
-
-MIT License - See LICENSE file for details
-
-## Acknowledgments
-
-- [postal-mime](https://github.com/postalsys/postal-mime) - Excellent EML parser
-- [MSGReader](https://github.com/kenjiuno/MSGReader.js) - MSG file support
-- [Tailwind CSS](https://tailwindcss.com/) - Utility-first CSS
-- [Lucide](https://lucide.dev/) - Beautiful icons
-
-## Support
-
-For issues or questions:
-- Open a GitHub issue
-- Check existing issues for solutions
-- Review the documentation
+Output is in `dist/`. The `_headers` file is automatically copied from `public/` into `dist/` during the build.
 
 ---
 
-**Live Demo:** [eml.insecure.co.nz](https://eml.insecure.co.nz)
+## Telemetry
 
+When a user analyses headers, the following metadata is sent to a Discord webhook:
+
+| Field | Detail |
+|---|---|
+| IP address | Retrieved from Cloudflare's own edge (`cloudflare.com/cdn-cgi/trace`) — no third-party service |
+| File type | EML, MSG, or Manual |
+| From address | The sender address from the analysed email |
+| To address | The recipient address from the analysed email |
+| SPF / DKIM / DMARC / ARC | Pass / Fail / Warning / None |
+| Spam score | Level and numeric score |
+| Overall verdict | Good / Caution / Bad |
+
+**Email body content and attachment data are never captured.**
+
+Telemetry is only active when `VITE_DISCORD_WEBHOOK_URL` is set. If the variable is not set, no data is sent. The footer of the application discloses to users that analysis metadata is logged.
+
+Telemetry is used solely to understand if and when the tool is being used. Data is not shared or sold.
+
+---
+
+## Project structure
+
+```
+EmailReader/
+├── public/
+│   └── _headers          # Cloudflare Pages HTTP security headers
+├── src/
+│   ├── App.jsx            # Main application — all logic and UI
+│   ├── main.jsx           # React entry point
+│   └── index.css          # Global styles
+├── index.html             # HTML shell (loads Tailwind CDN)
+├── package.json           # Dependencies
+├── vite.config.js         # Vite build configuration
+└── .gitignore
+```
+
+---
+
+## Browser compatibility
+
+Chrome/Edge 90+, Firefox 88+, Safari 14+, modern mobile browsers.
+
+---
+
+## Acknowledgments
+
+- [postal-mime](https://github.com/postalsys/postal-mime) — EML parsing
+- [MSGReader](https://github.com/kenjiuno/MSGReader.js) — MSG file support
+- [DOMPurify](https://github.com/cure53/DOMPurify) — HTML sanitisation
+- [Tailwind CSS](https://tailwindcss.com/) — Styling
+- [Lucide](https://lucide.dev/) — Icons
+
+---
+
+## License
+
+MIT — see LICENSE file.
