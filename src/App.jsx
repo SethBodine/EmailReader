@@ -3,8 +3,6 @@ import { Upload, AlertCircle, CheckCircle, XCircle, Mail, FileText, Shield } fro
 import PostalMime from 'postal-mime';
 import MSGReader from '@kenjiuno/msgreader';
 import { Buffer } from 'buffer';
-import * as DOMPurifyModule from 'dompurify';
-const DOMPurify = DOMPurifyModule.default ?? DOMPurifyModule;
 
 // Make Buffer available globally for MSGReader
 window.Buffer = Buffer;
@@ -825,12 +823,13 @@ const EmailReader = () => {
                       <h4 className="font-bold text-gray-800 mb-3">Email Content</h4>
                       <div className="bg-gray-50 p-4 rounded-lg max-h-96 overflow-y-auto">
                         {emailData.html ? (
-                          <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(emailData.html, {
-                            USE_PROFILES: { html: true },
-                            FORBID_TAGS: ['script', 'object', 'embed', 'form', 'input', 'button', 'meta', 'link', 'style'],
-                            FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur', 'onchange', 'onsubmit', 'action', 'formaction'],
-                            ALLOW_DATA_ATTR: false,
-                          }) }} />
+                          <iframe
+                            sandbox=""
+                            srcDoc={emailData.html}
+                            title="Email content"
+                            className="w-full border-0 rounded"
+                            style={{ minHeight: '300px', height: '400px' }}
+                          />
                         ) : (
                           <pre className="whitespace-pre-wrap text-sm">{emailData.text}</pre>
                         )}
