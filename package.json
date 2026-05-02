@@ -11,6 +11,7 @@
   "dependencies": {
     "@kenjiuno/msgreader": "^1.27.1-alpha.1",
     "buffer": "^6.0.3",
+    "dompurify": "^3.2.6",
     "lucide-react": "^0.263.1",
     "postal-mime": "^2.3.2",
     "react": "^18.3.1",

@@ -10,12 +10,7 @@ export default defineConfig({
     sourcemap: false,
     minify: 'terser',
     target: ['es2020'],
-    rollupOptions: {
-      output: {
-        manualChunks: undefined,
-        format: 'iife'
-      }
-    }
+    rollupOptions: {}
   },
   server: {
     port: 5173,

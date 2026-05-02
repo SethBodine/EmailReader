@@ -3,6 +3,7 @@ import { Upload, AlertCircle, CheckCircle, XCircle, Mail, FileText, Shield } fro
 import PostalMime from 'postal-mime';
 import MSGReader from '@kenjiuno/msgreader';
 import { Buffer } from 'buffer';
+import DOMPurify from 'dompurify';
 
 // Make Buffer available globally for MSGReader
 window.Buffer = Buffer;
@@ -825,7 +826,7 @@ const EmailReader = () => {
                         {emailData.html ? (
                           <iframe
                             sandbox=""
-                            srcDoc={emailData.html}
+                            srcDoc={DOMPurify.sanitize(emailData.html, { USE_PROFILES: { html: true } })}
                             title="Email content"
                             className="w-full border-0 rounded"
                             style={{ minHeight: '300px', height: '400px' }}
