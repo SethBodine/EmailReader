@@ -10,7 +10,14 @@ export default defineConfig({
     sourcemap: false,
     minify: 'terser',
     target: ['es2020'],
-    rollupOptions: {}
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          msgreader: ['@kenjiuno/msgreader']
+        }
+      }
+    }
   },
   server: {
     port: 5173,
@@ -27,6 +34,7 @@ export default defineConfig({
     global: 'globalThis'
   },
   optimizeDeps: {
+    include: ['@kenjiuno/msgreader', 'buffer'],
     esbuildOptions: {
       define: {
         global: 'globalThis'
