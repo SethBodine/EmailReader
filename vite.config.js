@@ -30,6 +30,7 @@ export default defineConfig({
     global: 'globalThis'
   },
   optimizeDeps: {
+    include: ['dompurify'],
     esbuildOptions: {
       define: {
         global: 'globalThis'

@@ -3,7 +3,8 @@ import { Upload, AlertCircle, CheckCircle, XCircle, Mail, FileText, Shield } fro
 import PostalMime from 'postal-mime';
 import MSGReader from '@kenjiuno/msgreader';
 import { Buffer } from 'buffer';
-import DOMPurify from 'dompurify';
+import * as DOMPurifyModule from 'dompurify';
+const DOMPurify = DOMPurifyModule.default ?? DOMPurifyModule;
 
 // Make Buffer available globally for MSGReader
 window.Buffer = Buffer;
