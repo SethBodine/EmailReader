@@ -128,13 +128,19 @@ const EmailReader = () => {
     }
   };
 
+  // Keep a ref to the latest analyzeHeaders so the effect below never
+  // needs it in its dependency array (adding it would cause an infinite loop
+  // because analyzeHeaders recreates whenever headerInput changes).
+  const analyzeHeadersRef = React.useRef(analyzeHeaders);
+  useEffect(() => { analyzeHeadersRef.current = analyzeHeaders; }, [analyzeHeaders]);
+
   // Auto-analyze when headers are populated from file upload
   useEffect(() => {
     if (autoAnalyze && headerInput) {
-      analyzeHeaders();
+      analyzeHeadersRef.current();
       setAutoAnalyze(false);
     }
-  }, [autoAnalyze]);
+  }, [autoAnalyze, headerInput]);
 
   // Parse headers into array format (key insight from working code!)
   const parseHeadersToObject = useCallback((headerText) => {
