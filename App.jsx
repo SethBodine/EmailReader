@@ -852,9 +852,8 @@ const EmailReader = () => {
           </div>
         </div>
 
-        <div className="text-center text-sm text-gray-600 space-y-1">
-          <p>Email files are processed locally in your browser — file contents and attachments are never uploaded to any server.</p>
-          <p className="text-gray-400 text-xs">Analysis metadata (IP address, From/To addresses, and authentication results) is logged for usage monitoring.</p>
+        <div className="text-center text-sm text-gray-600">
+          <p>This tool processes files locally in your browser. No data is sent to any server.</p>
         </div>
       </div>
     </div>
