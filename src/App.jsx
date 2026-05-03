@@ -129,7 +129,7 @@ const EmailReader = () => {
       analyzeHeaders();
       setAutoAnalyze(false);
     }
-  }, [autoAnalyze, headerInput, analyzeHeaders]);
+  }, [autoAnalyze]);
 
   // Parse headers into array format (key insight from working code!)
   const parseHeadersToObject = useCallback((headerText) => {
