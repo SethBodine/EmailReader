@@ -589,8 +589,33 @@ const EmailReader = () => {
   };
 
   // Download attachment function
+  const DANGEROUS_EXTENSIONS = [
+    'exe', 'bat', 'cmd', 'com', 'msi', 'ps1', 'psm1', 'psd1',
+    'vbs', 'vbe', 'js', 'jse', 'wsf', 'wsh', 'hta', 'scr',
+    'pif', 'reg', 'lnk', 'jar', 'sh', 'bash', 'zsh', 'py',
+    'rb', 'pl', 'php', 'asp', 'aspx', 'cpl', 'inf', 'sys',
+    'dll', 'ocx', 'iso', 'img', 'dmg', 'apk', 'ipa'
+  ];
+
   const downloadAttachment = (attachment) => {
     try {
+      const filename = attachment.filename || '';
+      const ext = filename.split('.').pop()?.toLowerCase() || '';
+      if (DANGEROUS_EXTENSIONS.includes(ext)) {
+        const confirmed = window.confirm(
+          `⚠️ Warning: "${filename}" has a potentially dangerous file type (.${ext}).
+
+` +
+          `This type of file can execute code on your computer and may be malicious.
+
+` +
+          `Only proceed if you trust the source of this email.
+
+Download anyway?`
+        );
+        if (!confirmed) return;
+      }
+
       let blob;
       
       // Handle different attachment formats
