@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Upload, AlertCircle, CheckCircle, XCircle, Mail, FileText, Shield } from 'lucide-react';
 import PostalMime from 'postal-mime';
-import MSGReader from '@kenjiuno/msgreader';
+
 import { Buffer } from 'buffer';
 import DOMPurify from 'dompurify';
 
@@ -484,6 +484,7 @@ const EmailReader = () => {
   const processMSGFile = async (file) => {
     try {
       const arrayBuffer = await file.arrayBuffer();
+      const { default: MSGReader } = await import('@kenjiuno/msgreader');
       const msgReader = new MSGReader(arrayBuffer);
       const fileData = msgReader.getFileData();
       
