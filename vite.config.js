@@ -10,14 +10,10 @@ export default defineConfig({
     sourcemap: false,
     minify: 'terser',
     target: ['es2020'],
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-          msgreader: ['@kenjiuno/msgreader']
-        }
-      }
-    }
+    // No manualChunks — let Rollup determine safe split points.
+    // Manual chunk splitting across CJS packages causes cross-chunk
+    // temporal dead zone crashes (can't access lexical declaration before init).
+    rollupOptions: {}
   },
   server: {
     port: 5173,
@@ -34,7 +30,17 @@ export default defineConfig({
     global: 'globalThis'
   },
   optimizeDeps: {
-    include: ['@kenjiuno/msgreader', 'buffer'],
+    // Force all CJS packages through Vite's pre-bundler together.
+    // This ensures their internal circular references are resolved
+    // before any ESM module graph wiring happens.
+    include: [
+      'react',
+      'react-dom',
+      'react-dom/client',
+      '@kenjiuno/msgreader',
+      'buffer',
+      'dompurify'
+    ],
     esbuildOptions: {
       define: {
         global: 'globalThis'
