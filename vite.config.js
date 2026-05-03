@@ -8,9 +8,16 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
     sourcemap: false,
-    minify: 'terser',
-    target: ['es2020'],
-    rollupOptions: {}
+    minify: 'esbuild',
+    rollupOptions: {
+      output: {
+        manualChunks: undefined
+      }
+    }
+  },
+  server: {
+    port: 5173,
+    open: true
   },
   resolve: {
     extensions: ['.js', '.jsx', '.json'],
@@ -21,5 +28,12 @@ export default defineConfig({
   define: {
     'process.env': {},
     global: 'globalThis'
+  },
+  optimizeDeps: {
+    esbuildOptions: {
+      define: {
+        global: 'globalThis'
+      }
+    }
   }
 })
