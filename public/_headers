@@ -19,4 +19,4 @@
   # - img-src: self + data URIs (email HTML may contain inline images)
   # - font-src: self
   # - frame-src/object-src: blocked entirely
-  Content-Security-Policy: default-src 'none'; script-src 'self' https://cdn.tailwindcss.com 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://discord.com https://www.cloudflare.com; img-src 'self' data: https:; font-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none';
+  Content-Security-Policy: default-src 'none'; script-src 'self' https://cdn.tailwindcss.com 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://discord.com https://ip.b0x.workers.dev; img-src 'self' data: https:; font-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none';

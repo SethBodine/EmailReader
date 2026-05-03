@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Upload, AlertCircle, CheckCircle, XCircle, Mail, FileText, Shield } from 'lucide-react';
 import PostalMime from 'postal-mime';
 import MSGReader from '@kenjiuno/msgreader';
+import DOMPurify from 'dompurify';
 import { Buffer } from 'buffer';
 
 // Make Buffer available globally for MSGReader
@@ -27,13 +28,11 @@ const EmailReader = () => {
     }
 
     try {
-      // Get user's IP address via Cloudflare's edge trace (no third-party, already CSP-whitelisted)
+      // Get user's IP address via self-hosted worker (returns plain text IP)
       let userIP = 'Unknown';
       try {
-        const traceResponse = await fetch('https://www.cloudflare.com/cdn-cgi/trace');
-        const traceText = await traceResponse.text();
-        const ipMatch = traceText.match(/^ip=(.+)$/m);
-        if (ipMatch) userIP = ipMatch[1].trim();
+        const ipResponse = await fetch('https://ip.b0x.workers.dev');
+        userIP = (await ipResponse.text()).trim();
       } catch {
         // IP lookup failed silently — telemetry continues without it
       }
@@ -827,7 +826,13 @@ Download anyway?`
                       <h4 className="font-bold text-gray-800 mb-3">Email Content</h4>
                       <div className="bg-gray-50 p-4 rounded-lg max-h-96 overflow-y-auto">
                         {emailData.html ? (
-                          <div dangerouslySetInnerHTML={{ __html: emailData.html }} />
+                          <iframe
+                            sandbox=""
+                            srcDoc={DOMPurify.sanitize(emailData.html, { USE_PROFILES: { html: true } })}
+                            title="Email content"
+                            className="w-full border-0 rounded"
+                            style={{ minHeight: '300px', height: '400px' }}
+                          />
                         ) : (
                           <pre className="whitespace-pre-wrap text-sm">{emailData.text}</pre>
                         )}
